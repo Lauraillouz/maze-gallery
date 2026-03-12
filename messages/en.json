@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "title": "Hortense's Gallery",
+    "description": "An interactive art gallery — drawings, paintings, ceramics."
+  },
+  "nav": {
+    "enter": "Enter the gallery",
+    "login": "Log in",
+    "signup": "Create an account",
+    "account": "My account",
+    "logout": "Log out"
+  },
+  "home": {
+    "title": "Hortense's Gallery",
+    "subtitle": "A gallery to explore, enigmas to solve, artworks to discover."
+  }
+}

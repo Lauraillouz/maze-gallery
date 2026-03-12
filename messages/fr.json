@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "title": "La Galerie d'Hortense",
+    "description": "Une galerie artistique interactive — dessins, peintures, céramique."
+  },
+  "nav": {
+    "enter": "Entrer dans la galerie",
+    "login": "Se connecter",
+    "signup": "Créer un compte",
+    "account": "Mon compte",
+    "logout": "Se déconnecter"
+  },
+  "home": {
+    "title": "La Galerie d'Hortense",
+    "subtitle": "Une galerie à explorer, des énigmes à résoudre, des œuvres à découvrir."
+  }
+}

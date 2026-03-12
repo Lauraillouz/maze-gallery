@@ -1,8 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import createIntlMiddleware from 'next-intl/middleware'
+import { routing } from './i18n/routing'
+
+const intlMiddleware = createIntlMiddleware(routing)
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  // 1. Gestion i18n — détection et redirection de langue
+  const intlResponse = intlMiddleware(request)
+
+  // 2. Gestion session Supabase — refresh du token
+  let supabaseResponse = intlResponse ?? NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,7 +33,6 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Rafraîchit la session si elle est expirée — ne pas supprimer
   await supabase.auth.getUser()
 
   return supabaseResponse
