@@ -1,0 +1,38 @@
+# La Galerie du Labyrinthe
+
+## Le projet
+Site galerie artistique interactif avec navigation 2D entre salles, enigmes cachees, et systeme d'abonnement a 3 niveaux + acces gratuit freemium. Projet personnel d'une artiste (dessins, peintures, ceramique, artistes invites). 50% des benefices nets reverses a des associations feministes choisies par les abonnees.
+
+## Stack technique
+- Next.js 14 App Router (TypeScript strict)
+- GSAP pour toutes les animations et transitions entre salles
+- Tailwind CSS pour le style
+- Supabase pour la base de donnees (PostgreSQL) et l'authentification
+- Stripe pour les abonnements recurrents
+- Vercel pour le deploiement
+
+## Les 4 niveaux d'acces
+- Visiteur (gratuit, sans inscription) : salles publiques, enigmes simples, achat d'oeuvres et prints, bouton don
+- Exploratrice (5 EUR/mois ou 45 EUR/an) : salles supplementaires, 1 salle/mois, artistes invites, print digital de bienvenue
+- Initiee (12 EUR/mois ou 108 EUR/an) : salles profondes, oeuvres uniques, 1 dessin sur mesure/an, 1 livre mystere/an, acces prioritaire aux ceramiques
+- Gardienne (30 EUR/mois ou 270 EUR/an, 50 places max) : acces total, call creatif trimestriel, nom grave dans la galerie, co-creation de salles
+
+## Architecture des salles
+Chaque salle est une entite en base de donnees avec : id, nom, contenu (oeuvres, textes, recommandations), niveau d'acces requis, enigmes associees, salles adjacentes. La navigation est une SPA — pas de rechargement entre salles, tout gere cote client avec GSAP.
+
+## Principes de code non negociables
+- Code niveau senior : simple, lisible, bien type, facile a maintenir
+- Pas d'over-engineering — la solution la plus simple qui fonctionne
+- Composants React petits, responsabilite unique
+- TypeScript strict — pas de any, pas de ts-ignore
+- Toutes les animations via GSAP uniquement — jamais Framer Motion ou CSS keyframes
+- Toujours expliquer les choix d'architecture avant d'ecrire le code
+- Toujours proposer la structure de fichiers avant d'implementer une feature
+
+## Ce qu'on ne fait pas pour l'instant
+- Pas de Redis, pas de WebSockets, pas de microservices
+- Pas d'app mobile avant que le web soit stable
+- Pas de CMS externe — le contenu est gere directement en base
+
+## Contexte pedagogique
+La developpeuse est de niveau intermediaire en TypeScript/JavaScript/Python et developpe ce projet pour monter en competences vers un niveau senior. Toujours expliquer les choix techniques, signaler les pieges classiques, et ne jamais generer du code que la developpeuse ne peut pas expliquer ligne par ligne.
