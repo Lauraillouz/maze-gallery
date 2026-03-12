@@ -1,21 +1,19 @@
 import type { Metadata } from 'next'
-import localFont from 'next/font/local'
+import { Playfair_Display, Inter } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 import { routing, type Locale } from '@/i18n/routing'
 import { notFound } from 'next/navigation'
 import '../globals.css'
 
-const geistSans = localFont({
-  src: '../fonts/GeistVF.woff',
-  variable: '--font-geist-sans',
-  weight: '100 900',
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair',
 })
 
-const geistMono = localFont({
-  src: '../fonts/GeistMonoVF.woff',
-  variable: '--font-geist-mono',
-  weight: '100 900',
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
 })
 
 export async function generateMetadata({
@@ -49,7 +47,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={params.locale}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${playfair.variable} ${inter.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
