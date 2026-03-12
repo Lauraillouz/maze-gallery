@@ -9,16 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        black:    "#0D0A07",
+        espresso: "#1C0A04",
+        amber:    "#FF8500",
+        magenta:  "#D63B7A",
+        mustard:  "#D4A017",
+        rust:     "#C84B1E",
         gold:     "#C9A84C",
         cream:    "#F5EDD6",
-        burgundy: "#6B1E2E",
         teal:     "#2A5C5E",
-        brown:    "#3D2B1F",
       },
       fontFamily: {
-        serif: ["var(--font-playfair)", "Georgia", "serif"],
-        sans:  ["var(--font-inter)", "system-ui", "sans-serif"],
+        serif:  ["var(--font-playfair)", "Georgia", "serif"],
+        sans:   ["var(--font-inter)", "system-ui", "sans-serif"],
+        grotesk: ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
       },
     },
   },
