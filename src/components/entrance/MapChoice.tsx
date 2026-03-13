@@ -11,17 +11,17 @@ export default function MapChoice({ onChoice }: MapChoiceProps) {
 
   return (
     <div className="flex flex-col items-center gap-8 text-center">
-      <p className="font-grotesk text-sm uppercase tracking-widest text-amber/60">{t('map_choice_title')}</p>
+      <p className="font-grotesk text-sm font-bold uppercase tracking-widest text-[#0D0010]">{t('map_choice_title')}</p>
       <div className="flex gap-6">
         <button
           onClick={() => onChoice(true)}
-          className="border border-amber bg-espresso px-8 py-3 font-grotesk text-sm uppercase tracking-widest text-amber shadow-[3px_3px_0px_rgba(255,133,0,0.3)] transition-all duration-150 hover:bg-amber hover:text-espresso active:shadow-none active:translate-x-px active:translate-y-px"
+          className="border-2 border-[#0D0010] bg-[#FF2D9B] px-8 py-3 font-grotesk text-sm font-bold uppercase tracking-widest text-[#0D0010] shadow-[4px_4px_0px_#0D0010] transition-all duration-100 hover:bg-[#F5E000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
         >
           {t('map_take')}
         </button>
         <button
           onClick={() => onChoice(false)}
-          className="border border-cream/40 bg-espresso px-8 py-3 font-grotesk text-sm uppercase tracking-widest text-cream/60 shadow-[3px_3px_0px_rgba(245,237,214,0.1)] transition-all duration-150 hover:border-cream/70 hover:text-cream active:shadow-none active:translate-x-px active:translate-y-px"
+          className="border-2 border-[#0D0010] bg-[#00D4C8] px-8 py-3 font-grotesk text-sm font-bold uppercase tracking-widest text-[#0D0010] shadow-[4px_4px_0px_#0D0010] transition-all duration-100 hover:bg-[#A000FF] hover:text-[#FFFBE0] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
         >
           {t('map_skip')}
         </button>

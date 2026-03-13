@@ -51,12 +51,10 @@ export default async function LocaleLayout({
   const messages = await getMessages()
 
   return (
-    <html lang={params.locale}>
-      <body className={`${playfair.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased`}>
-        <NextIntlClientProvider messages={messages}>
-          {children}
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <div lang={params.locale} className={`${playfair.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased`}>
+      <NextIntlClientProvider messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </div>
   )
 }

@@ -5,13 +5,22 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import MapChoice from "./MapChoice";
+import GalleryRoom from "./GalleryRoom";
 
 const MAP_STORAGE_KEY = "hortense_has_map";
 const NUM_STARS = 800;
 const FOCAL_LENGTH = 300;
 const NEBULA_START_Z = 8000;
 const NEBULA_MIN_Z = 60;
-const WORD_Z_SPEED_FACTOR = 0.08;
+
+// Tunnel-of-words
+const TUNNEL_HALF_W = 155; // world half-width of tunnel opening
+const TUNNEL_HALF_H = 115; // world half-height
+const CHAR_Z_STEP = 700; // z gap between consecutive chars in a row
+const TUNNEL_Z_MAX = 7000; // how far to render
+const ROWS_PER_WALL = 3; // rows on each wall surface
+const PERP_SPAN_V = TUNNEL_HALF_H * 3.5; // vertical span of rows on left/right
+const PERP_SPAN_H = TUNNEL_HALF_W * 3.5; // horizontal span of rows on top/bottom
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,15 +68,10 @@ interface Nebula {
   elapsed: number;
 }
 
-interface WordFlash {
-  text: string;
-  wx: number;
-  wy: number;
-  z: number; // 3D world position
-  alpha: number;
-  life: number;
-  maxLife: number;
-  baseSize: number; // font size at z=FOCAL_LENGTH
+interface WallRow {
+  wall: "left" | "right" | "top" | "bottom";
+  perpOffset: number; // wy for left/right, wx for top/bottom (fixed world coord)
+  textOffset: number; // index into textBuffer
   font: string;
 }
 
@@ -89,19 +93,32 @@ interface SurrealistShape {
   noiseOffset: number;
 }
 
+// ─── Psychedelic stripe colors (shared with GalleryRoom palette) ─────────────
+
+const PSYCH_COLORS = [
+  "#FF2D9B",
+  "#FF6400",
+  "#F5E000",
+  "#00D4C8",
+  "#A000FF",
+  "#82E000",
+  "#FF80C0",
+  "#FF6400",
+];
+
 // ─── Nebula palettes ──────────────────────────────────────────────────────────
 
 const NEBULA_PALETTES: [string, string, string, string][] = [
-  // Amber fire
-  ["255, 133, 0", "214, 59, 122", "232, 184, 75", "200, 75, 30"],
-  // Magenta rust
-  ["214, 59, 122", "200, 75, 30", "255, 133, 0", "212, 160, 23"],
-  // Mustard inferno
-  ["212, 160, 23", "255, 133, 0", "200, 75, 30", "240, 100, 60"],
-  // Psychedelic warm
-  ["255, 80, 30", "214, 59, 122", "255, 200, 60", "180, 40, 80"],
-  // Retro solar
-  ["240, 140, 20", "200, 40, 80", "255, 100, 0", "180, 160, 40"],
+  // Electric
+  ["255, 45, 155", "255, 100, 0", "0, 212, 200", "130, 224, 0"],
+  // Neon
+  ["160, 0, 255", "255, 45, 155", "80, 200, 255", "245, 224, 0"],
+  // Acid
+  ["130, 224, 0", "0, 212, 200", "160, 0, 255", "255, 100, 0"],
+  // Pop
+  ["245, 224, 0", "255, 45, 155", "0, 212, 200", "130, 224, 0"],
+  // Psychedelic
+  ["255, 45, 155", "130, 224, 0", "160, 0, 255", "255, 128, 0"],
 ];
 
 // ─── Factories ────────────────────────────────────────────────────────────────
@@ -220,7 +237,7 @@ function drawFace(
   alpha: number,
 ) {
   const s = (v: number) => v * scale;
-  ctx.strokeStyle = `rgba(245, 237, 214, ${alpha})`;
+  ctx.strokeStyle = `rgba(255, 45, 155, ${alpha})`;
   ctx.lineWidth = Math.max(0.5, s(1.5));
 
   // Head
@@ -275,7 +292,7 @@ function drawHand(
   alpha: number,
 ) {
   const s = (v: number) => v * scale;
-  ctx.strokeStyle = `rgba(245, 237, 214, ${alpha})`;
+  ctx.strokeStyle = `rgba(0, 212, 200, ${alpha})`;
   ctx.lineWidth = Math.max(0.5, s(1.5));
 
   // Palm
@@ -322,6 +339,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wordsCanvasRef = useRef<HTMLCanvasElement>(null);
+  const roomCanvasRef = useRef<HTMLCanvasElement>(null);
   const roomRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const taglineRef = useRef<HTMLParagraphElement>(null);
@@ -336,17 +354,20 @@ export default function EntranceScene({ locale }: { locale: string }) {
 
   useEffect(() => {
     setTagline(taglines[Math.floor(Math.random() * taglines.length)]);
-  }, []);
+  }, [taglines]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const maybeCtx = canvas.getContext("2d");
+    if (!maybeCtx) return;
+    const ctx: CanvasRenderingContext2D = maybeCtx;
 
     const wordsCanvas = wordsCanvasRef.current;
     if (!wordsCanvas) return;
-    const wctx = wordsCanvas.getContext("2d");
+    const maybeWrdCtx = wordsCanvas.getContext("2d");
+    if (!maybeWrdCtx) return;
+    const wctx: CanvasRenderingContext2D = maybeWrdCtx;
     if (!wctx) return;
 
     canvas.width = window.innerWidth;
@@ -363,44 +384,54 @@ export default function EntranceScene({ locale }: { locale: string }) {
       gsap.killTweensOf([
         canvas,
         wordsCanvas,
+        roomCanvasRef.current,
         flashRef.current,
         roomRef.current,
         titleRef.current,
         taglineRef.current,
         mapRef.current,
       ]);
+      // Screen is already black from the dot — room canvas zooms out from the same center
+      gsap.set(roomCanvasRef.current, {
+        scale: 9,
+        transformOrigin: "50% 50%",
+        opacity: 1,
+      });
       gsap
         .timeline()
-        .to(flashRef.current, { opacity: 1, duration: 0.08, ease: "none" })
-        .to(flashRef.current, { opacity: 0, duration: 0.6, ease: "power2.out" })
+        // Entrance canvas fades while room zooms out — both start immediately, no flash needed
         .to(
           [canvas, wordsCanvas],
-          { opacity: 0, duration: 0.5, ease: "power2.out" },
-          "-=0.5",
+          { opacity: 0, duration: 0.06, ease: "none" },
+        )
+        .to(
+          roomCanvasRef.current,
+          { scale: 1, duration: 0.09, ease: "power2.out" },
+          "<",
         )
         .fromTo(
           roomRef.current,
           { opacity: 0 },
-          { opacity: 0.3, duration: 0.05 },
+          { opacity: 0.3, duration: 0.04 },
         )
-        .to(roomRef.current, { opacity: 0.1, duration: 0.05 })
-        .to(roomRef.current, { opacity: 0.9, duration: 0.05 })
-        .to(roomRef.current, { opacity: 0.3, duration: 0.05 })
-        .to(roomRef.current, { opacity: 1, duration: 0.5, ease: "power2.out" })
+        .to(roomRef.current, { opacity: 0.1, duration: 0.04 })
+        .to(roomRef.current, { opacity: 0.9, duration: 0.04 })
+        .to(roomRef.current, { opacity: 0.3, duration: 0.04 })
+        .to(roomRef.current, { opacity: 1, duration: 0.4, ease: "power2.out" })
         .from(
           titleRef.current,
-          { opacity: 0, y: 12, duration: 1.2, ease: "power2.out" },
-          "-=0.3",
+          { opacity: 0, y: 12, duration: 1.0, ease: "power2.out" },
+          "-=0.2",
         )
         .from(
           taglineRef.current,
-          { opacity: 0, duration: 1, ease: "power2.out" },
-          "-=0.7",
+          { opacity: 0, duration: 0.8, ease: "power2.out" },
+          "-=0.6",
         )
         .from(
           mapRef.current,
-          { opacity: 0, y: 20, duration: 1, ease: "power2.out" },
-          "-=0.5",
+          { opacity: 0, y: 20, duration: 0.8, ease: "power2.out" },
+          "-=0.4",
         );
     }
     const cx0 = width / 2;
@@ -410,29 +441,42 @@ export default function EntranceScene({ locale }: { locale: string }) {
       createStar(width, height),
     );
     const nebulae: Nebula[] = [];
-    const wordFlashes: WordFlash[] = [];
     const gravityWells: GravityWell[] = [];
     let shape: SurrealistShape | null = null;
 
     const WORD_FONTS = [
-      // Space Grotesk — futuriste géométrique
       "bold var(--font-space-grotesk), sans-serif",
       "900 var(--font-space-grotesk), sans-serif",
       "italic var(--font-space-grotesk), sans-serif",
-      // Futura / Century Gothic — icônes des années 70 spatial
       "bold Futura, 'Century Gothic', Avenir, sans-serif",
       "Futura, 'Century Gothic', Avenir, sans-serif",
-      // Optima — élégance moderniste des 70s
       "bold Optima, 'Gill Sans', 'Gill Sans MT', sans-serif",
-      // Playfair — cabinet de curiosités
       "italic var(--font-playfair), serif",
       "bold italic var(--font-playfair), serif",
-      // Impact — graphique, choc visuel
       "Impact, 'Arial Black', sans-serif",
     ];
 
-    // Full surrealist phrases — shuffled so order is random each visit
-    const wordFragments = [...taglines].sort(() => Math.random() - 0.5);
+    // Each row reads a non-overlapping window of charsPerRow chars.
+    // Extend the buffer so all rows fit without any char repeating.
+    const charsPerRow = Math.ceil(TUNNEL_Z_MAX / CHAR_Z_STEP); // slots visible per row at once
+
+    const wallRows: WallRow[] = [];
+    const walls = ["left", "right", "top", "bottom"] as const;
+    let rowIdx = 0;
+    for (const wall of walls) {
+      for (let i = 0; i < ROWS_PER_WALL; i++) {
+        const tVal = i / (ROWS_PER_WALL - 1);
+        const span =
+          wall === "left" || wall === "right" ? PERP_SPAN_V : PERP_SPAN_H;
+        wallRows.push({
+          wall,
+          perpOffset: -span / 2 + tVal * span,
+          textOffset: rowIdx * charsPerRow, // each row reads a unique non-overlapping slice
+          font: WORD_FONTS[rowIdx % WORD_FONTS.length],
+        });
+        rowIdx++;
+      }
+    }
 
     const DURATION = 6000;
     const ACCELERATE_END = 0.35;
@@ -444,7 +488,6 @@ export default function EntranceScene({ locale }: { locale: string }) {
     let tick = 0;
     let lastGlitchT = 0;
     let nextNebulaT = 0.02;
-    let nextWordT = 0.04;
     let nextWellT = 0.2;
     let nextShapeT = 0.25;
     let invertFramesLeft = 0;
@@ -457,7 +500,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
 
     // ── Nebulae ───────────────────────────────────────────────────────────────
     function drawNebulae(speed: number, cx: number, cy: number) {
-      ctx!.globalCompositeOperation = "screen";
+      ctx.globalCompositeOperation = "screen";
       for (let i = nebulae.length - 1; i >= 0; i--) {
         const neb = nebulae[i];
         const drift = (speed / 28) * 0.012;
@@ -484,7 +527,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
         const nt = neb.elapsed * 0.001;
 
         for (const fil of neb.filaments) {
-          const grad = ctx!.createLinearGradient(
+          const grad = ctx.createLinearGradient(
             sx + fil.ax * scale,
             sy + fil.ay * scale,
             sx + fil.bx * scale,
@@ -500,17 +543,17 @@ export default function EntranceScene({ locale }: { locale: string }) {
             `rgba(${fil.color}, ${fil.alpha * globalOpacity})`,
           );
           grad.addColorStop(1, `rgba(${fil.color}, 0)`);
-          ctx!.strokeStyle = grad;
-          ctx!.lineWidth = Math.max(0.5, fil.width * scale);
-          ctx!.beginPath();
-          ctx!.moveTo(sx + fil.ax * scale, sy + fil.ay * scale);
-          ctx!.quadraticCurveTo(
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = Math.max(0.5, fil.width * scale);
+          ctx.beginPath();
+          ctx.moveTo(sx + fil.ax * scale, sy + fil.ay * scale);
+          ctx.quadraticCurveTo(
             sx + fil.cpx * scale,
             sy + fil.cpy * scale,
             sx + fil.bx * scale,
             sy + fil.by * scale,
           );
-          ctx!.stroke();
+          ctx.stroke();
         }
 
         for (const order of ["base", "detail", "core"] as BlobLayer[]) {
@@ -525,7 +568,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
             const bx = sx + (blob.bx + dx) * scale;
             const by = sy + (blob.by + dy) * scale;
             const br = Math.max(1, blob.radius * scale);
-            const grad = ctx!.createRadialGradient(bx, by, 0, bx, by, br);
+            const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
             const a = blob.alpha * globalOpacity;
             if (order === "core") {
               grad.addColorStop(0, `rgba(${blob.color}, ${a * 2})`);
@@ -540,14 +583,14 @@ export default function EntranceScene({ locale }: { locale: string }) {
               grad.addColorStop(0.5, `rgba(${blob.color}, ${a * 0.5})`);
             }
             grad.addColorStop(1, `rgba(${blob.color}, 0)`);
-            ctx!.fillStyle = grad;
-            ctx!.beginPath();
-            ctx!.arc(bx, by, br, 0, Math.PI * 2);
-            ctx!.fill();
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(bx, by, br, 0, Math.PI * 2);
+            ctx.fill();
           }
         }
       }
-      ctx!.globalCompositeOperation = "source-over";
+      ctx.globalCompositeOperation = "source-over";
     }
 
     // ── Surrealist shape ──────────────────────────────────────────────────────
@@ -578,80 +621,10 @@ export default function EntranceScene({ locale }: { locale: string }) {
       if (alpha < 0.01) return;
 
       const st = shape.elapsed * 0.001 + shape.noiseOffset;
-      ctx!.globalCompositeOperation = "screen";
-      if (shape.type === "face") drawFace(ctx!, sx, sy, scale, st, alpha);
-      else drawHand(ctx!, sx, sy, scale, st, alpha);
-      ctx!.globalCompositeOperation = "source-over";
-    }
-
-    // ── Word flashes — drawn on a separate canvas, cleared fully each frame ───
-    // Each letter has its own z depth: first letter closest, last farthest.
-    // prevEndScreenX tracks where each letter ends on screen, then gets
-    // back-projected to world X at the next letter's deeper z — this gives
-    // natural perspective compression without manual spacing.
-    function drawWords(speed: number, cx: number, cy: number) {
-      wctx!.clearRect(0, 0, width, height);
-
-      // Global skew following the tunnel's VP drift
-      const vpDriftX = (cx - cx0) / (width * 0.28);
-      const vpDriftY = (cy - cy0) / (height * 0.2);
-      wctx!.save();
-      wctx!.transform(1, vpDriftY * 0.06, vpDriftX * 0.14, 1, 0, 0);
-
-      for (let i = wordFlashes.length - 1; i >= 0; i--) {
-        const w = wordFlashes[i];
-        w.life++;
-
-        const drift = (speed / 28) * 0.018;
-        w.wx += w.wy * drift;
-        w.wy -= w.wx * drift;
-        w.z -= speed * WORD_Z_SPEED_FACTOR;
-
-        if (w.z <= 0) {
-          wordFlashes.splice(i, 1);
-          continue;
-        }
-
-        const fadeIn = Math.min(1, w.life / (w.maxLife * 0.25));
-        const fadeOut = Math.max(0, 1 - w.life / w.maxLife);
-        w.alpha = fadeIn * fadeOut;
-        if (w.alpha < 0.01) {
-          wordFlashes.splice(i, 1);
-          continue;
-        }
-
-        wctx!.fillStyle = `rgba(245, 237, 214, ${w.alpha * 0.9})`;
-
-        const DEPTH_STEP = 180; // z gap between consecutive letters
-        // Start screen x = projection of w.wx at w.z
-        let prevEndScreenX = (w.wx / w.z) * FOCAL_LENGTH + cx;
-
-        for (let ci = 0; ci < w.text.length; ci++) {
-          const char = w.text[ci];
-          const letterZ = w.z + ci * DEPTH_STEP;
-          if (letterZ <= 0) continue;
-
-          const lScale = FOCAL_LENGTH / letterZ;
-          const fontSize = Math.max(20, w.baseSize * lScale);
-          const floatAmp = Math.max(0.5, 4 * lScale);
-
-          wctx!.font = `${fontSize}px ${w.font}`;
-
-          // Screen position: x from prevEndScreenX, y projected at letterZ
-          const lsy = (w.wy / letterZ) * FOCAL_LENGTH + cy;
-          const floatY = lsy + Math.sin(w.life * 0.05 + ci * 0.7) * floatAmp;
-          const floatX =
-            prevEndScreenX +
-            Math.cos(w.life * 0.04 + ci * 0.5) * floatAmp * 0.3;
-
-          wctx!.fillText(char, floatX, floatY);
-
-          // Advance: next letter starts where this one ends on screen
-          prevEndScreenX += wctx!.measureText(char).width;
-        }
-      }
-
-      wctx!.restore();
+      ctx.globalCompositeOperation = "screen";
+      if (shape.type === "face") drawFace(ctx, sx, sy, scale, st, alpha);
+      else drawHand(ctx, sx, sy, scale, st, alpha);
+      ctx.globalCompositeOperation = "source-over";
     }
 
     // ── Gravity wells ─────────────────────────────────────────────────────────
@@ -672,8 +645,8 @@ export default function EntranceScene({ locale }: { locale: string }) {
         const sliceY = Math.floor(Math.random() * height);
         const sliceH = 2 + Math.floor(Math.random() * 10);
         const offsetX = (Math.random() - 0.5) * 60;
-        const imageData = ctx!.getImageData(0, sliceY, width, sliceH);
-        ctx!.putImageData(imageData, offsetX, sliceY);
+        const imageData = ctx.getImageData(0, sliceY, width, sliceH);
+        ctx.putImageData(imageData, offsetX, sliceY);
       }
     }
 
@@ -683,12 +656,9 @@ export default function EntranceScene({ locale }: { locale: string }) {
       const elapsed = timestamp - startTime;
       const t = Math.min(elapsed / DURATION, 1);
 
-      ctx!.fillStyle = "rgba(28, 10, 4, 0.18)";
-      ctx!.fillRect(0, 0, width, height);
-
       tick++;
 
-      // Speed curve + breathing pulse (effect 5)
+      // Speed curve + breathing pulse
       let baseSpeed: number;
       if (t < ACCELERATE_END) {
         const p = t / ACCELERATE_END;
@@ -705,49 +675,64 @@ export default function EntranceScene({ locale }: { locale: string }) {
       }
       const speed = baseSpeed * (1 + 0.12 * Math.sin(tick * 0.07));
 
-      // Oscillating vanishing point
-      const cx = cx0 + Math.sin(tick * 0.022) * width * 0.28;
-      const cy = cy0 + Math.cos(tick * 0.016) * height * 0.2;
+      // Oscillating vanishing point — swings freely until deceleration, then converges to center
+      const vpSwing =
+        t > CRUISE_END
+          ? 1 - Math.pow((t - CRUISE_END) / (1 - CRUISE_END), 0.6)
+          : 1;
+      const cx = cx0 + Math.sin(tick * 0.022) * width * 0.28 * vpSwing;
+      const cy = cy0 + Math.cos(tick * 0.016) * height * 0.2 * vpSwing;
+
+      // ── Psychedelic radial stripes: fade in from black over first ~40% ───────
+      // stripePhase: 0 (pure black) → 1 (full color), starts at t=0.03
+      const stripePhase = Math.min(1, Math.max(0, (t - 0.03) / 0.38));
+      // arrivalBoost: 0 → 1 during deceleration phase
+      const arrivalBoost =
+        t > CRUISE_END
+          ? Math.pow((t - CRUISE_END) / (1 - CRUISE_END), 1.2)
+          : 0;
+      // Trail fill: darkens frame; nearly gone at arrival so colors fully dominate
+      const fillAlpha = (0.72 - 0.54 * stripePhase) * (1 - arrivalBoost * 0.85);
+
+      if (stripePhase > 0.01) {
+        const N = 16;
+        const R = Math.hypot(width, height);
+        // Rotation accelerates into a tornado spin as stripes converge
+        const rot = tick * (0.006 + arrivalBoost * arrivalBoost * 0.15);
+        // Blur drops from 32px → 0 as stripes sharpen; each stripe expands 1/N → 2/N to fill gaps
+        const stripeBlur = Math.round(32 * (1 - arrivalBoost));
+        const stripeExpand = arrivalBoost; // 0 = gap of 1 stripe, 1 = stripes touch
+        ctx.filter = stripeBlur > 0 ? `blur(${stripeBlur}px)` : "none";
+        ctx.globalAlpha = Math.min(1, stripePhase * 0.68 + arrivalBoost * 1.0);
+        for (let i = 0; i < N; i += 2) {
+          const a1 = (i / N) * Math.PI * 2 + rot;
+          const a2 = ((i + 1 + stripeExpand) / N) * Math.PI * 2 + rot;
+          ctx.fillStyle = PSYCH_COLORS[Math.floor(i / 2) % PSYCH_COLORS.length];
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          for (let j = 0; j <= 8; j++) {
+            const a = a1 + ((a2 - a1) * j) / 8;
+            ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.filter = "none";
+      }
+
+      // Trail fill — darkens previous frame (thins out as stripes become visible)
+      ctx.fillStyle = `rgba(8, 0, 15, ${fillAlpha})`;
+      ctx.fillRect(0, 0, width, height);
 
       drawNebulae(speed, cx, cy);
       updateShape(speed, cx, cy);
-      drawWords(speed, cx, cy);
       applyGravityWells();
 
       // Spawn events
       if (t >= nextNebulaT && nebulae.length < 4) {
         nebulae.push(spawnNebula());
         nextNebulaT = t + 0.08 + Math.random() * 0.1;
-      }
-      if (t >= nextWordT && wordFragments.length > 0) {
-        const text =
-          wordFragments[Math.floor(Math.random() * wordFragments.length)];
-        // Spawn at a target screen position — derive world coords from it
-        // so the word starts visible and rushes toward the viewer like stars
-        const spawnZ = 2000 + Math.random() * 3000;
-        const baseSize = 220 + Math.floor(Math.random() * 120);
-        // Estimate total screen width at spawn using average z across letters
-        // (perspective compresses each letter as depth increases by DEPTH_STEP)
-        const avgZ = spawnZ + text.length * 0.5 * 180;
-        const approxWidth =
-          text.length * baseSize * 0.5 * (FOCAL_LENGTH / avgZ);
-        const safeLeft = width * 0.05;
-        const safeRight = width * 0.92 - approxWidth;
-        const targetSx =
-          safeLeft + Math.random() * Math.max(0, safeRight - safeLeft);
-        const targetSy = height * 0.12 + Math.random() * height * 0.76;
-        wordFlashes.push({
-          text,
-          wx: ((targetSx - cx) * spawnZ) / FOCAL_LENGTH,
-          wy: ((targetSy - cy) * spawnZ) / FOCAL_LENGTH,
-          z: spawnZ,
-          alpha: 0,
-          life: 0,
-          maxLife: 180 + Math.floor(Math.random() * 120),
-          baseSize,
-          font: WORD_FONTS[Math.floor(Math.random() * WORD_FONTS.length)],
-        });
-        nextWordT = t + 0.06 + Math.random() * 0.1;
       }
       if (t >= nextWellT) {
         gravityWells.push({
@@ -777,7 +762,6 @@ export default function EntranceScene({ locale }: { locale: string }) {
         star.x += star.y * drift;
         star.y -= star.x * drift;
 
-        // Gravity well influence (effect 6)
         for (const gw of gravityWells) {
           const lifeRatio = 1 - gw.life / gw.maxLife;
           const dxw = gw.sx - ((star.x / star.z) * FOCAL_LENGTH + cx);
@@ -787,12 +771,9 @@ export default function EntranceScene({ locale }: { locale: string }) {
           star.y += (dyw / dist) * gw.strength * lifeRatio;
         }
 
-        // Effect 4: reverse stars go away from viewer
         if (star.reverse) {
           star.z += speed * 0.5;
-          if (star.z > width) {
-            star.z = 10 + Math.random() * 50;
-          }
+          if (star.z > width) star.z = 10 + Math.random() * 50;
         } else {
           star.z -= speed;
         }
@@ -814,34 +795,90 @@ export default function EntranceScene({ locale }: { locale: string }) {
         const opacity = Math.min(1, depth * 2);
         const aberration = size * (2 + depth * 6);
 
-        ctx!.globalCompositeOperation = "screen";
-        ctx!.lineWidth = size;
-        // Warm chromatic aberration: amber / magenta / gold
-        ctx!.strokeStyle = `rgba(255, 133, 0, ${opacity * 0.85})`;
-        ctx!.beginPath();
-        ctx!.moveTo(star.px - aberration, star.py);
-        ctx!.lineTo(sx - aberration, sy);
-        ctx!.stroke();
-        ctx!.strokeStyle = `rgba(214, 59, 122, ${opacity * 0.85})`;
-        ctx!.beginPath();
-        ctx!.moveTo(star.px, star.py);
-        ctx!.lineTo(sx, sy);
-        ctx!.stroke();
-        ctx!.strokeStyle = `rgba(232, 184, 75, ${opacity * 0.85})`;
-        ctx!.beginPath();
-        ctx!.moveTo(star.px + aberration * 0.5, star.py + aberration * 0.3);
-        ctx!.lineTo(sx + aberration * 0.5, sy + aberration * 0.3);
-        ctx!.stroke();
-        ctx!.globalCompositeOperation = "source-over";
+        ctx.globalCompositeOperation = "screen";
+        ctx.lineWidth = size;
+
+        // Chromatic aberration streaks
+        ctx.strokeStyle = `rgba(255, 45, 155, ${opacity * 0.85})`;
+        ctx.beginPath();
+        ctx.moveTo(star.px - aberration, star.py);
+        ctx.lineTo(sx - aberration, sy);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(0, 212, 200, ${opacity * 0.85})`;
+        ctx.beginPath();
+        ctx.moveTo(star.px, star.py);
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(160, 0, 255, ${opacity * 0.85})`;
+        ctx.beginPath();
+        ctx.moveTo(star.px + aberration * 0.5, star.py + aberration * 0.3);
+        ctx.lineTo(sx + aberration * 0.5, sy + aberration * 0.3);
+        ctx.stroke();
+
+        // Halo: bright core + soft colored bloom
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.9})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, size * 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        if (depth > 0.35) {
+          ctx.fillStyle = `rgba(200, 80, 255, ${opacity * 0.28})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, size * 5 * depth, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.globalCompositeOperation = "source-over";
       }
 
-      // Effect 3: color inversion flash via difference blend mode
+      // Color inversion flash
       if (invertFramesLeft > 0) {
-        ctx!.globalCompositeOperation = "difference";
-        ctx!.fillStyle = "rgba(255, 255, 255, 0.12)";
-        ctx!.fillRect(0, 0, width, height);
-        ctx!.globalCompositeOperation = "source-over";
+        ctx.globalCompositeOperation = "difference";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = "source-over";
         invertFramesLeft--;
+      }
+
+      // ── End-of-tunnel arrival ─────────────────────────────────────────────────
+      if (t > CRUISE_END) {
+        const arrivalP = (t - CRUISE_END) / (1 - CRUISE_END); // 0 → 1
+
+        // Warm glow radiates outward as stripes intensify
+        const eased = arrivalP * arrivalP * arrivalP;
+        const gRadius = Math.min(width, height) * (0.25 + arrivalP * 1.8);
+        const gAlpha = eased * 0.92;
+        ctx.globalCompositeOperation = "screen";
+        const arrivalGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, gRadius);
+        arrivalGlow.addColorStop(0, `rgba(255, 245, 210, ${gAlpha})`);
+        arrivalGlow.addColorStop(0.25, `rgba(255, 200, 60, ${gAlpha * 0.7})`);
+        arrivalGlow.addColorStop(0.55, `rgba(255, 45, 155, ${gAlpha * 0.25})`);
+        arrivalGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = arrivalGlow;
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = "source-over";
+
+        // Black dot appears at VP, grows fast with a fuzzy/tornado edge
+        const dotP = Math.max(0, (arrivalP - 0.91) / 0.09); // 0 at 91%, 1 at 100%
+        if (dotP > 0) {
+          const dotEased = dotP * dotP * (3 - 2 * dotP); // smoothstep
+          const dotR = dotEased * Math.hypot(width, height) * 0.85;
+          // Fuzzy outer halo — spinning debris / tornado fringe
+          const fuzz = dotR * 0.35;
+          const fuzzGrad = ctx.createRadialGradient(cx, cy, dotR * 0.6, cx, cy, dotR + fuzz);
+          fuzzGrad.addColorStop(0, "rgba(8, 0, 15, 1)");
+          fuzzGrad.addColorStop(0.55, "rgba(8, 0, 15, 0.85)");
+          fuzzGrad.addColorStop(0.8, "rgba(8, 0, 15, 0.35)");
+          fuzzGrad.addColorStop(1, "rgba(8, 0, 15, 0)");
+          ctx.fillStyle = fuzzGrad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, dotR + fuzz, 0, Math.PI * 2);
+          ctx.fill();
+          // Hard core
+          ctx.fillStyle = "#08000F";
+          ctx.beginPath();
+          ctx.arc(cx, cy, dotR * 0.62, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       if (t < 1) {
@@ -870,7 +907,8 @@ export default function EntranceScene({ locale }: { locale: string }) {
       taglineRef.current,
       mapRef.current,
     ]);
-    gsap.set([canvasRef.current, wordsCanvasRef.current], { opacity: 0 });
+    gsap.set([canvasRef.current, wordsCanvasRef.current], { opacity: 0, clipPath: "none" });
+    gsap.set(roomCanvasRef.current, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
     gsap.set(
       [roomRef.current, titleRef.current, taglineRef.current, mapRef.current],
       { opacity: 1, y: 0 },
@@ -883,42 +921,49 @@ export default function EntranceScene({ locale }: { locale: string }) {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-espresso">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#08000F]">
       <canvas ref={canvasRef} className="absolute inset-0" />
       <canvas ref={wordsCanvasRef} className="absolute inset-0" />
+      <GalleryRoom ref={roomCanvasRef} style={{ opacity: 0 }} />
       <div
         ref={flashRef}
-        className="pointer-events-none absolute inset-0 z-20 bg-amber"
+        className="pointer-events-none absolute inset-0 z-20 bg-[#F5E000]"
         style={{ opacity: 0 }}
       />
       {animating && (
         <button
           onClick={skipIntro}
-          className="absolute right-6 top-6 z-30 border border-amber/40 bg-espresso/70 px-4 py-2 font-grotesk text-xs uppercase tracking-widest text-amber/80 shadow-[2px_2px_0px_rgba(255,133,0,0.2)] transition-all duration-150 hover:border-amber hover:bg-espresso hover:text-amber active:shadow-none active:translate-x-px active:translate-y-px"
+          className="absolute right-6 top-6 z-30 border-2 border-[#FF2D9B]/60 bg-[#08000F]/80 px-4 py-2 font-grotesk text-xs font-bold uppercase tracking-widest text-[#FF2D9B] shadow-[2px_2px_0px_rgba(255,45,155,0.35)] transition-all duration-100 hover:border-[#FF2D9B] hover:bg-[#FF2D9B] hover:text-[#08000F] active:shadow-none active:translate-x-px active:translate-y-px"
         >
           {t("skip")}
         </button>
       )}
       <div
         ref={roomRef}
-        className="relative z-10 flex min-h-screen w-full flex-col items-center justify-between px-6 py-16"
+        className="pointer-events-none absolute inset-0 z-10"
         style={{ opacity: 0 }}
       >
-        <div className="flex flex-col items-center gap-4 text-center">
+        {/* Title on the back wall — centered at ~40% height to align with VP */}
+        <div className="absolute left-1/2 top-[28%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3 text-center">
           <h1
             ref={titleRef}
-            className="font-grotesk text-5xl font-bold uppercase tracking-tight text-cream md:text-7xl"
+            className="font-grotesk text-4xl font-bold uppercase tracking-tight text-[#0D0010] drop-shadow-[3px_3px_0px_rgba(255,45,155,0.7)] md:text-6xl"
           >
             {t("title")}
           </h1>
           <p
             ref={taglineRef}
-            className="max-w-md font-serif text-base italic text-amber/70"
+            className="max-w-xs font-grotesk text-[11px] font-bold uppercase tracking-[0.22em] text-[#FFFBE0] drop-shadow-[2px_2px_0px_#0D0010]"
           >
             {tagline}
           </p>
         </div>
-        <div ref={mapRef} className="flex flex-col items-center gap-4">
+
+        {/* Map choice at bottom — foreground of the room */}
+        <div
+          ref={mapRef}
+          className="pointer-events-auto absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4"
+        >
           <MapChoice onChoice={handleMapChoice} />
         </div>
       </div>
