@@ -13,15 +13,6 @@ const FOCAL_LENGTH = 300;
 const NEBULA_START_Z = 8000;
 const NEBULA_MIN_Z = 60;
 
-// Tunnel-of-words
-const TUNNEL_HALF_W = 155; // world half-width of tunnel opening
-const TUNNEL_HALF_H = 115; // world half-height
-const CHAR_Z_STEP = 700; // z gap between consecutive chars in a row
-const TUNNEL_Z_MAX = 7000; // how far to render
-const ROWS_PER_WALL = 3; // rows on each wall surface
-const PERP_SPAN_V = TUNNEL_HALF_H * 3.5; // vertical span of rows on left/right
-const PERP_SPAN_H = TUNNEL_HALF_W * 3.5; // horizontal span of rows on top/bottom
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Star {
@@ -66,13 +57,6 @@ interface Nebula {
   blobs: NebulaBlob[];
   filaments: NebulaFilament[];
   elapsed: number;
-}
-
-interface WallRow {
-  wall: "left" | "right" | "top" | "bottom";
-  perpOffset: number; // wy for left/right, wx for top/bottom (fixed world coord)
-  textOffset: number; // index into textBuffer
-  font: string;
 }
 
 interface GravityWell {
@@ -338,13 +322,11 @@ export default function EntranceScene({ locale }: { locale: string }) {
   const router = useRouter();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wordsCanvasRef = useRef<HTMLCanvasElement>(null);
   const roomCanvasRef = useRef<HTMLCanvasElement>(null);
   const roomRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const taglineRef = useRef<HTMLParagraphElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
-  const flashRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
   const arrivalTriggeredRef = useRef(false);
 
@@ -363,17 +345,8 @@ export default function EntranceScene({ locale }: { locale: string }) {
     if (!maybeCtx) return;
     const ctx: CanvasRenderingContext2D = maybeCtx;
 
-    const wordsCanvas = wordsCanvasRef.current;
-    if (!wordsCanvas) return;
-    const maybeWrdCtx = wordsCanvas.getContext("2d");
-    if (!maybeWrdCtx) return;
-    const wctx: CanvasRenderingContext2D = maybeWrdCtx;
-    if (!wctx) return;
-
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    wordsCanvas.width = window.innerWidth;
-    wordsCanvas.height = window.innerHeight;
     const { width, height } = canvas;
 
     function triggerArrival() {
@@ -383,9 +356,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
       setAnimating(false);
       gsap.killTweensOf([
         canvas,
-        wordsCanvas,
         roomCanvasRef.current,
-        flashRef.current,
         roomRef.current,
         titleRef.current,
         taglineRef.current,
@@ -400,10 +371,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
       gsap
         .timeline()
         // Entrance canvas fades while room zooms out — both start immediately, no flash needed
-        .to(
-          [canvas, wordsCanvas],
-          { opacity: 0, duration: 0.06, ease: "none" },
-        )
+        .to(canvas, { opacity: 0, duration: 0.06, ease: "none" })
         .to(
           roomCanvasRef.current,
           { scale: 1, duration: 0.09, ease: "power2.out" },
@@ -443,40 +411,6 @@ export default function EntranceScene({ locale }: { locale: string }) {
     const nebulae: Nebula[] = [];
     const gravityWells: GravityWell[] = [];
     let shape: SurrealistShape | null = null;
-
-    const WORD_FONTS = [
-      "bold var(--font-space-grotesk), sans-serif",
-      "900 var(--font-space-grotesk), sans-serif",
-      "italic var(--font-space-grotesk), sans-serif",
-      "bold Futura, 'Century Gothic', Avenir, sans-serif",
-      "Futura, 'Century Gothic', Avenir, sans-serif",
-      "bold Optima, 'Gill Sans', 'Gill Sans MT', sans-serif",
-      "italic var(--font-playfair), serif",
-      "bold italic var(--font-playfair), serif",
-      "Impact, 'Arial Black', sans-serif",
-    ];
-
-    // Each row reads a non-overlapping window of charsPerRow chars.
-    // Extend the buffer so all rows fit without any char repeating.
-    const charsPerRow = Math.ceil(TUNNEL_Z_MAX / CHAR_Z_STEP); // slots visible per row at once
-
-    const wallRows: WallRow[] = [];
-    const walls = ["left", "right", "top", "bottom"] as const;
-    let rowIdx = 0;
-    for (const wall of walls) {
-      for (let i = 0; i < ROWS_PER_WALL; i++) {
-        const tVal = i / (ROWS_PER_WALL - 1);
-        const span =
-          wall === "left" || wall === "right" ? PERP_SPAN_V : PERP_SPAN_H;
-        wallRows.push({
-          wall,
-          perpOffset: -span / 2 + tVal * span,
-          textOffset: rowIdx * charsPerRow, // each row reads a unique non-overlapping slice
-          font: WORD_FONTS[rowIdx % WORD_FONTS.length],
-        });
-        rowIdx++;
-      }
-    }
 
     const DURATION = 6000;
     const ACCELERATE_END = 0.35;
@@ -900,14 +834,13 @@ export default function EntranceScene({ locale }: { locale: string }) {
     cancelAnimationFrame(animFrameRef.current);
     gsap.killTweensOf([
       canvasRef.current,
-      wordsCanvasRef.current,
-      flashRef.current,
+      roomCanvasRef.current,
       roomRef.current,
       titleRef.current,
       taglineRef.current,
       mapRef.current,
     ]);
-    gsap.set([canvasRef.current, wordsCanvasRef.current], { opacity: 0, clipPath: "none" });
+    gsap.set(canvasRef.current, { opacity: 0 });
     gsap.set(roomCanvasRef.current, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
     gsap.set(
       [roomRef.current, titleRef.current, taglineRef.current, mapRef.current],
@@ -923,13 +856,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#08000F]">
       <canvas ref={canvasRef} className="absolute inset-0" />
-      <canvas ref={wordsCanvasRef} className="absolute inset-0" />
       <GalleryRoom ref={roomCanvasRef} style={{ opacity: 0 }} />
-      <div
-        ref={flashRef}
-        className="pointer-events-none absolute inset-0 z-20 bg-[#F5E000]"
-        style={{ opacity: 0 }}
-      />
       {animating && (
         <button
           onClick={skipIntro}

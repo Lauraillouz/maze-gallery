@@ -11,6 +11,9 @@ type Quad = [Pt, Pt, Pt, Pt];
 interface Eye {
   wx: number;
   wy: number;
+  targetWx: number;
+  targetWy: number;
+  nextMove: number;
   wall: "back" | "left" | "right";
   size: number;
   irisColor: string;
@@ -31,6 +34,15 @@ interface PortalRing {
   r: number;
   alpha: number;
 }
+
+interface Blob {
+  x: number; y: number;
+  vx: number; vy: number;
+  r: number;
+  color: string;
+}
+
+const BLINK_SPEED = 0.06;
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
@@ -130,77 +142,26 @@ const GalleryRoom = forwardRef<
     const W = canvas.width;
     const H = canvas.height;
 
-    const eyes: Eye[] = [
-      {
-        wx: 0.16,
-        wy: 0.26,
-        wall: "back",
-        size: 0.11,
-        irisColor: randomColor(),
-        blinkState: "idle",
-        blinkProgress: 0,
-        nextBlink: 150,
-      },
-      {
-        wx: 0.8,
-        wy: 0.2,
-        wall: "back",
-        size: 0.1,
-        irisColor: randomColor(),
-        blinkState: "idle",
-        blinkProgress: 0,
-        nextBlink: 90,
-      },
-      {
-        wx: 0.88,
-        wy: 0.68,
-        wall: "back",
-        size: 0.09,
-        irisColor: randomColor(),
-        blinkState: "idle",
-        blinkProgress: 0,
-        nextBlink: 220,
-      },
-      {
-        wx: 0.1,
-        wy: 0.7,
-        wall: "back",
-        size: 0.09,
-        irisColor: randomColor(),
-        blinkState: "idle",
-        blinkProgress: 0,
-        nextBlink: 60,
-      },
-      {
-        wx: 0.42,
-        wy: 0.4,
-        wall: "left",
-        size: 0.15,
-        irisColor: randomColor(),
-        blinkState: "idle",
-        blinkProgress: 0,
-        nextBlink: 180,
-      },
-      {
-        wx: 0.38,
-        wy: 0.42,
-        wall: "right",
-        size: 0.15,
-        irisColor: randomColor(),
-        blinkState: "idle",
-        blinkProgress: 0,
-        nextBlink: 130,
-      },
-    ];
-
-    interface Blob {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      r: number;
-      color: string;
+    function randPos(wall: "back" | "left" | "right") {
+      const wx = wall === "back" ? 0.08 + Math.random() * 0.84 : 0.15 + Math.random() * 0.70
+      const wy = wall === "back" ? 0.10 + Math.random() * 0.72 : 0.12 + Math.random() * 0.65
+      return { wx, wy }
     }
+
+    const eyes: Eye[] = (
+      [
+        { wall: "back",  size: 0.11 },
+        { wall: "back",  size: 0.10 },
+        { wall: "back",  size: 0.09 },
+        { wall: "back",  size: 0.09 },
+        { wall: "left",  size: 0.15 },
+        { wall: "right", size: 0.15 },
+      ] as { wall: "back" | "left" | "right"; size: number }[]
+    ).map(({ wall, size }) => {
+      const { wx, wy } = randPos(wall)
+      return { wx, wy, targetWx: wx, targetWy: wy, nextMove: 200 + Math.floor(Math.random() * 400), wall, size, irisColor: randomColor(), blinkState: "idle" as const, blinkProgress: 0, nextBlink: 60 + Math.floor(Math.random() * 180) }
+    });
+
     const portalStars: PortalStar[] = [];
     const portalRings: PortalRing[] = [];
 
@@ -310,10 +271,10 @@ const GalleryRoom = forwardRef<
       ctx.closePath();
       ctx.clip();
       const maxR = Math.max(bw, bh) * 1.3;
+      ctx.lineWidth = 5;
+      ctx.globalAlpha = 0.55;
       for (let r = 7; r >= 1; r--) {
         ctx.strokeStyle = COLORS[(r + 4) % N];
-        ctx.lineWidth = 5;
-        ctx.globalAlpha = 0.55;
         ctx.beginPath();
         ctx.arc(vpx, vpy, (maxR * r) / 7, 0, Math.PI * 2);
         ctx.stroke();
@@ -322,19 +283,14 @@ const GalleryRoom = forwardRef<
       ctx.restore();
 
       const edgeLW = Math.max(3, W * 0.004);
-      [
-        [pt(0, H), BWbl],
-        [pt(W, H), BWbr],
-        [pt(0, 0), BWtl],
-        [pt(W, 0), BWtr],
-      ].forEach(([a, b]) => {
-        ctx.strokeStyle = INK;
-        ctx.lineWidth = edgeLW;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = edgeLW;
+      for (const [a, b] of [[pt(0, H), BWbl], [pt(W, H), BWbr], [pt(0, 0), BWtl], [pt(W, 0), BWtr]] as [Pt, Pt][]) {
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
         ctx.stroke();
-      });
+      }
       strokePoly(ctx, [BWtl, BWtr, BWbr, BWbl], INK, edgeLW);
       strokePoly(ctx, [BWbl, BWbr, pt(W, H), pt(0, H)], INK, edgeLW * 0.6);
       strokePoly(ctx, [pt(0, 0), pt(W, 0), BWtr, BWtl], INK, edgeLW * 0.6);
@@ -346,11 +302,6 @@ const GalleryRoom = forwardRef<
       const portalY = vpy + bh * 0.06;
 
       // ── Black hole ────────────────────────────────────────────────────────────
-      ctx.fillStyle = "#08000F";
-      ctx.beginPath();
-      ctx.arc(portalX, portalY, portalR, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.save();
       ctx.beginPath();
       ctx.arc(portalX, portalY, portalR, 0, Math.PI * 2);
@@ -557,8 +508,19 @@ const GalleryRoom = forwardRef<
         ctx.globalAlpha = 1;
       }
 
-      const BLINK_SPEED = 0.06;
       for (const eye of eyes) {
+        // Smoothly glide toward target position
+        eye.wx += (eye.targetWx - eye.wx) * 0.018
+        eye.wy += (eye.targetWy - eye.wy) * 0.018
+        // Pick a new target at random intervals
+        eye.nextMove--
+        if (eye.nextMove <= 0) {
+          const { wx, wy } = randPos(eye.wall)
+          eye.targetWx = wx
+          eye.targetWy = wy
+          eye.nextMove = 250 + Math.floor(Math.random() * 500)
+        }
+
         eye.nextBlink--;
         if (eye.blinkState === "idle" && eye.nextBlink <= 0)
           eye.blinkState = "closing";
