@@ -5,6 +5,9 @@ import gsap from 'gsap'
 import { RoomType } from '@/types/gallery'
 import { ROOMS } from '@/data/rooms'
 
+// Keep latest prop values in refs so callbacks (GSAP onUpdate) always read
+// current data without needing to recreate closures.
+
 const ALL_ROOMS = Object.values(ROOMS)
 
 // Map grid constants (mini mode)
@@ -135,14 +138,20 @@ export default function MapCanvas({ visited, current }: Props) {
   const [expanded, setExpanded] = useState(false)
   const expandedRef = useRef(false)
   const animatingRef = useRef(false)
+  const visitedRef = useRef(visited)
+  const currentRef = useRef(current)
 
-  // Draw at current size
+  // Keep refs in sync with props each render
+  visitedRef.current = visited
+  currentRef.current = current
+
+  // Draw at current size — always reads latest visited/current from refs
   function redraw(isExpanded = expandedRef.current) {
     const canvas = canvasRef.current
     if (!canvas) return
     const w = isExpanded ? window.innerWidth : MINI_W
     const h = isExpanded ? window.innerHeight : MINI_H
-    drawMap(canvas, w, h, visited, current)
+    drawMap(canvas, w, h, visitedRef.current, currentRef.current)
   }
 
   // Mount: initial draw + fade in
@@ -153,12 +162,15 @@ export default function MapCanvas({ visited, current }: Props) {
       { opacity: 0, x: -12 },
       { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' },
     )
+  // redraw is stable — it reads from refs, not closed-over props
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Redraw when data changes
   useEffect(() => {
     redraw()
+  // redraw reads from refs; only need expanded here to re-draw at the
+  // correct size when the expanded state settles after animation
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visited, current, expanded])
 

@@ -149,6 +149,9 @@ function spawnParticle(roomType: RoomType, w: number, h: number, randomLife = fa
       maxLife = 200 + Math.floor(rand() * 150)
       break
     }
+
+    default:
+      throw new Error(`Unhandled RoomType in spawnParticle: ${roomType}`)
   }
 
   const life = randomLife ? Math.floor(rand() * maxLife) : maxLife
@@ -242,7 +245,7 @@ interface Props {
   vpOffsetY?: number
 }
 
-export default function RoomCanvas({ roomType, backDoor, leftDoor, rightDoor, vpOffsetX, vpOffsetY }: Props) {
+export default function RoomCanvas({ roomType, backDoor, leftDoor, rightDoor, vpOffsetX = 0, vpOffsetY = 0 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
   // Keep door colors current without restarting the RAF loop
@@ -256,13 +259,15 @@ export default function RoomCanvas({ roomType, backDoor, leftDoor, rightDoor, vp
   }, [backDoor, leftDoor, rightDoor])
 
   useEffect(() => {
-    vpOffsetRef.current = { x: vpOffsetX ?? 0, y: vpOffsetY ?? 0 }
+    vpOffsetRef.current = { x: vpOffsetX, y: vpOffsetY }
   }, [vpOffsetX, vpOffsetY])
 
   useEffect(() => {
-    const el = canvasRef.current
-    if (!el) return
-    const canvas: HTMLCanvasElement = el
+    // Capture canvas and ctx as typed consts after null-checks so the draw()
+    // closure doesn't lose narrowing (canvasRef.current is mutable, so
+    // TypeScript can't narrow it through an inner function boundary).
+    if (!canvasRef.current) return
+    const canvas: HTMLCanvasElement = canvasRef.current
 
     const maybeCtx = canvas.getContext('2d')
     if (!maybeCtx) return

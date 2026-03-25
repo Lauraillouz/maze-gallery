@@ -60,13 +60,14 @@ function idHash(id: string) {
   return h;
 }
 
-function initialPos(item: ContentItem, idx: number, total: number, sw: number, sh: number) {
+function initialPos(item: ContentItem, idx: number, total: number, sw: number, sh: number): { x: number; y: number } {
   const spread = total > 1 ? (idx / (total - 1) - 0.5) * 220 : 0;
   switch (item.wall) {
     case Direction.North: return { x: sw * 0.5 + spread, y: sh * 0.26 };
     case Direction.South: return { x: sw * 0.5 + spread, y: sh * 0.56 };
     case Direction.East:  return { x: sw * 0.76, y: sh * 0.32 + spread * 0.4 };
     case Direction.West:  return { x: sw * 0.24, y: sh * 0.32 + spread * 0.4 };
+    default:              return { x: sw * 0.5,  y: sh * 0.4 };
   }
 }
 
@@ -145,7 +146,7 @@ export default function RoomView({ room, onNavigate }: Props) {
     for (const item of room.content) (byWall[item.wall] ??= []).push(item);
     const pos: Record<string, { x: number; y: number }> = {};
     for (const items of Object.values(byWall)) {
-      items!.forEach((item, i) => { pos[item.id] = initialPos(item, i, items!.length, sw, sh); });
+      items.forEach((item, i) => { pos[item.id] = initialPos(item, i, items.length, sw, sh); });
     }
     setPositions(pos);
   }, [room.type, room.content, sw, sh]);
@@ -293,6 +294,10 @@ export default function RoomView({ room, onNavigate }: Props) {
     if (side !== "behind") connBySide.set(side, conn);
   }
 
+  const backConn  = connBySide.get("back");
+  const leftConn  = connBySide.get("left");
+  const rightConn = connBySide.get("right");
+
   const vpOffX = hoveredDoor && hoveredDoor in VP_PULL ? VP_PULL[hoveredDoor as "left" | "right"] : 0;
 
   return (
@@ -324,11 +329,10 @@ export default function RoomView({ room, onNavigate }: Props) {
         >
           <RoomCanvas
             roomType={room.type}
-            backDoor={connBySide.get("back") ? ROOM_ACCENT[connBySide.get("back")!.to] : undefined}
-            leftDoor={connBySide.get("left") ? ROOM_ACCENT[connBySide.get("left")!.to] : undefined}
-            rightDoor={connBySide.get("right") ? ROOM_ACCENT[connBySide.get("right")!.to] : undefined}
+            backDoor={backConn   ? ROOM_ACCENT[backConn.to]  : undefined}
+            leftDoor={leftConn   ? ROOM_ACCENT[leftConn.to]  : undefined}
+            rightDoor={rightConn ? ROOM_ACCENT[rightConn.to] : undefined}
             vpOffsetX={vpOffX}
-            vpOffsetY={0}
           />
         </div>
 
@@ -365,9 +369,9 @@ export default function RoomView({ room, onNavigate }: Props) {
 
         {sw > 0 && (
           <>
-            {connBySide.get("back") && renderDoorButton("back", connBySide.get("back")!)}
-            {connBySide.get("left") && renderDoorButton("left", connBySide.get("left")!)}
-            {connBySide.get("right") && renderDoorButton("right", connBySide.get("right")!)}
+            {backConn  && renderDoorButton("back",  backConn)}
+            {leftConn  && renderDoorButton("left",  leftConn)}
+            {rightConn && renderDoorButton("right", rightConn)}
           </>
         )}
       </div>
