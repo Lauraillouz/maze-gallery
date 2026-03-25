@@ -19,20 +19,15 @@ function relativeSide(
 
 const ROOM_ACCENT: Record<RoomType, string> = {
   [RoomType.Entrance]: "#FF2D9B",
-  [RoomType.Garden]: "#82E000",
-  [RoomType.Library]: "#A000FF",
-  [RoomType.Studio]: "#FF6400",
-  [RoomType.Archive]: "#00D4C8",
-  [RoomType.Salon]: "#F5E000",
+  [RoomType.Garden]:   "#82E000",
+  [RoomType.Library]:  "#A000FF",
+  [RoomType.Studio]:   "#FF6400",
+  [RoomType.Archive]:  "#00D4C8",
+  [RoomType.Salon]:    "#F5E000",
 };
 
 function qPt(
-  q: readonly [
-    readonly [number, number],
-    readonly [number, number],
-    readonly [number, number],
-    readonly [number, number],
-  ],
+  q: readonly [readonly [number,number], readonly [number,number], readonly [number,number], readonly [number,number]],
   s: number,
   t: number,
 ): [number, number] {
@@ -47,74 +42,31 @@ const DOOR_S: [number, number] = [0.4, 0.6];
 const DOOR_T: [number, number] = [0.48, 0.95];
 
 function getDoorBox(side: "back" | "left" | "right", w: number, h: number) {
-  const vpx = w / 2,
-    vpy = h * 0.42;
-  const bw = w * 0.32,
-    bh = h * 0.5;
-  const bx0 = vpx - bw / 2,
-    bx1 = vpx + bw / 2;
-  const by0 = vpy - bh / 2,
-    by1 = vpy + bh / 2;
-  const [s0, s1] = DOOR_S,
-    [t0, t1] = DOOR_T;
-  if (side === "back") {
-    const q = [
-      [bx0, by0],
-      [bx1, by0],
-      [bx1, by1],
-      [bx0, by1],
-    ] as const;
-    const tl = qPt(q, s0, t0),
-      br = qPt(q, s1, t1);
-    return { x: tl[0], y: tl[1], w: br[0] - tl[0], h: br[1] - tl[1] };
-  }
-  if (side === "left") {
-    const q = [
-      [0, 0],
-      [bx0, by0],
-      [bx0, by1],
-      [0, h],
-    ] as const;
-    const tl = qPt(q, s0, t0),
-      br = qPt(q, s1, t1);
-    return { x: tl[0], y: tl[1], w: br[0] - tl[0], h: br[1] - tl[1] };
-  }
-  const q = [
-    [bx1, by0],
-    [w, 0],
-    [w, h],
-    [bx1, by1],
-  ] as const;
-  const tl = qPt(q, s0, t0),
-    br = qPt(q, s1, t1);
+  const vpx = w / 2, vpy = h * 0.42;
+  const bx0 = vpx - w * 0.16, bx1 = vpx + w * 0.16;
+  const by0 = vpy - h * 0.25, by1 = vpy + h * 0.25;
+  const q: Parameters<typeof qPt>[0] =
+    side === "back"  ? [[bx0,by0],[bx1,by0],[bx1,by1],[bx0,by1]] :
+    side === "left"  ? [[0,0],[bx0,by0],[bx0,by1],[0,h]] :
+                       [[bx1,by0],[w,0],[w,h],[bx1,by1]];
+  const [s0, s1] = DOOR_S, [t0, t1] = DOOR_T;
+  const tl = qPt(q, s0, t0), br = qPt(q, s1, t1);
   return { x: tl[0], y: tl[1], w: br[0] - tl[0], h: br[1] - tl[1] };
 }
 
-// Consistent per-item "random" values from id
 function idHash(id: string) {
   let h = 0;
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0xffffff;
   return h;
 }
 
-// Initial floating position based on wall assignment
-function initialPos(
-  item: ContentItem,
-  idx: number,
-  total: number,
-  sw: number,
-  sh: number,
-) {
+function initialPos(item: ContentItem, idx: number, total: number, sw: number, sh: number) {
   const spread = total > 1 ? (idx / (total - 1) - 0.5) * 220 : 0;
   switch (item.wall) {
-    case Direction.North:
-      return { x: sw * 0.5 + spread, y: sh * 0.26 };
-    case Direction.South:
-      return { x: sw * 0.5 + spread, y: sh * 0.56 };
-    case Direction.East:
-      return { x: sw * 0.76, y: sh * 0.32 + spread * 0.4 };
-    case Direction.West:
-      return { x: sw * 0.24, y: sh * 0.32 + spread * 0.4 };
+    case Direction.North: return { x: sw * 0.5 + spread, y: sh * 0.26 };
+    case Direction.South: return { x: sw * 0.5 + spread, y: sh * 0.56 };
+    case Direction.East:  return { x: sw * 0.76, y: sh * 0.32 + spread * 0.4 };
+    case Direction.West:  return { x: sw * 0.24, y: sh * 0.32 + spread * 0.4 };
   }
 }
 
@@ -134,14 +86,11 @@ interface RippleWave {
   baseAlpha: number;
 }
 
-const RIPPLE_SPEED = 0.85; // px/ms
-const RIPPLE_LIFETIME = 2200; // ms
+const RIPPLE_SPEED = 0.85;
+const RIPPLE_LIFETIME = 2200;
 
-const VP_PULL: Record<"back" | "left" | "right", { x: number; y: number }> = {
-  back: { x: 0, y: 0 },
-  left: { x: 250, y: 0 },
-  right: { x: -250, y: 0 },
-};
+// VP shift when hovering side doors; back uses GSAP zoom instead
+const VP_PULL: Record<"left" | "right", number> = { left: 250, right: -250 };
 
 interface Props {
   room: Room;
@@ -153,12 +102,9 @@ export default function RoomView({ room, onNavigate }: Props) {
   const [sw, setSw] = useState(0);
   const [sh, setSh] = useState(0);
   const [zoomedItem, setZoomedItem] = useState<ContentItem | null>(null);
-  const [positions, setPositions] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
-  const [hoveredDoor, setHoveredDoor] = useState<
-    "back" | "left" | "right" | null
-  >(null);
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [hoveredDoor, setHoveredDoor] = useState<"back" | "left" | "right" | null>(null);
+
   const roomRef = useRef<HTMLDivElement>(null);
   const zoomWrapperRef = useRef<HTMLDivElement>(null);
   const turningRef = useRef(false);
@@ -169,18 +115,11 @@ export default function RoomView({ room, onNavigate }: Props) {
   const rippleColorRef = useRef(ROOM_ACCENT[room.type]);
 
   useEffect(() => {
-    const update = () => {
-      setSw(window.innerWidth);
-      setSh(window.innerHeight);
-    };
+    const update = () => { setSw(window.innerWidth); setSh(window.innerHeight); };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
-
-  useEffect(() => {
-    rippleColorRef.current = ROOM_ACCENT[room.type];
-  }, [room.type]);
 
   useEffect(() => {
     const canvas = rippleCanvasRef.current;
@@ -190,28 +129,24 @@ export default function RoomView({ room, onNavigate }: Props) {
   }, [sw, sh]);
 
   useEffect(() => {
+    rippleColorRef.current = ROOM_ACCENT[room.type];
+    setHoveredDoor(null);
+  }, [room.type]);
+
+  useEffect(() => {
     return () => cancelAnimationFrame(rippleRafRef.current);
   }, []);
 
-  // Reset floating positions when room changes
   useEffect(() => {
     if (sw === 0) return;
     const byWall: Partial<Record<Direction, ContentItem[]>> = {};
-    for (const item of room.content) {
-      (byWall[item.wall] ??= []).push(item);
-    }
+    for (const item of room.content) (byWall[item.wall] ??= []).push(item);
     const pos: Record<string, { x: number; y: number }> = {};
     for (const items of Object.values(byWall)) {
-      items!.forEach((item, i) => {
-        pos[item.id] = initialPos(item, i, items!.length, sw, sh);
-      });
+      items!.forEach((item, i) => { pos[item.id] = initialPos(item, i, items!.length, sw, sh); });
     }
     setPositions(pos);
   }, [room.type, room.content, sw, sh]);
-
-  useEffect(() => {
-    setHoveredDoor(null);
-  }, [room.type]);
 
   function drawRipples() {
     const canvas = rippleCanvasRef.current;
@@ -221,7 +156,6 @@ export default function RoomView({ room, onNavigate }: Props) {
 
     const now = performance.now();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     rippleSourcesRef.current = rippleSourcesRef.current.filter(
       (s) => now - s.startTime < RIPPLE_LIFETIME,
     );
@@ -229,7 +163,6 @@ export default function RoomView({ room, onNavigate }: Props) {
     const color = rippleColorRef.current;
     for (const s of rippleSourcesRef.current) {
       const elapsed = now - s.startTime;
-      const r = elapsed * RIPPLE_SPEED;
       const alpha = s.baseAlpha * Math.max(0, 1 - elapsed / RIPPLE_LIFETIME);
       if (alpha < 0.005) continue;
       ctx.save();
@@ -239,26 +172,23 @@ export default function RoomView({ room, onNavigate }: Props) {
       ctx.shadowColor = color;
       ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(s.ox, s.oy, Math.max(0, r), 0, Math.PI * 2);
+      ctx.arc(s.ox, s.oy, elapsed * RIPPLE_SPEED, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
 
-    if (rippleSourcesRef.current.length > 0) {
+    if (rippleSourcesRef.current.length > 0)
       rippleRafRef.current = requestAnimationFrame(drawRipples);
-    }
   }
 
   function addRipple(x: number, y: number) {
     const now = performance.now();
-    const W = sw,
-      H = sh;
     rippleSourcesRef.current.push(
-      { ox: x, oy: y, startTime: now, baseAlpha: 0.75 },
-      { ox: -x, oy: y, startTime: now, baseAlpha: 0.35 },
-      { ox: 2 * W - x, oy: y, startTime: now, baseAlpha: 0.35 },
-      { ox: x, oy: -y, startTime: now, baseAlpha: 0.35 },
-      { ox: x, oy: 2 * H - y, startTime: now, baseAlpha: 0.35 },
+      { ox: x,        oy: y,        startTime: now, baseAlpha: 0.75 },
+      { ox: -x,       oy: y,        startTime: now, baseAlpha: 0.35 },
+      { ox: 2*sw - x, oy: y,        startTime: now, baseAlpha: 0.35 },
+      { ox: x,        oy: -y,       startTime: now, baseAlpha: 0.35 },
+      { ox: x,        oy: 2*sh - y, startTime: now, baseAlpha: 0.35 },
     );
     cancelAnimationFrame(rippleRafRef.current);
     rippleRafRef.current = requestAnimationFrame(drawRipples);
@@ -273,33 +203,15 @@ export default function RoomView({ room, onNavigate }: Props) {
     gsap.set(zoomWrapperRef.current, { scale: 1 });
     const yOut = dir === "right" ? -40 : 40;
     gsap.to(roomRef.current, {
-      rotateY: yOut,
-      transformPerspective: 900,
-      opacity: 0,
-      duration: 0.16,
-      ease: "power2.in",
+      rotateY: yOut, transformPerspective: 900, opacity: 0,
+      duration: 0.16, ease: "power2.in",
       onComplete: () => {
-        setFacing(
-          (f) =>
-            DIRS[
-              dir === "right"
-                ? (DIRS.indexOf(f) + 1) % 4
-                : (DIRS.indexOf(f) + 3) % 4
-            ],
-        );
+        setFacing((f) => DIRS[dir === "right" ? (DIRS.indexOf(f) + 1) % 4 : (DIRS.indexOf(f) + 3) % 4]);
         gsap.fromTo(
           roomRef.current,
           { rotateY: -yOut, transformPerspective: 900, opacity: 0 },
-          {
-            rotateY: 0,
-            transformPerspective: 900,
-            opacity: 1,
-            duration: 0.2,
-            ease: "power2.out",
-            onComplete: () => {
-              turningRef.current = false;
-            },
-          },
+          { rotateY: 0, transformPerspective: 900, opacity: 1, duration: 0.2, ease: "power2.out",
+            onComplete: () => { turningRef.current = false; } },
         );
       },
     });
@@ -313,10 +225,8 @@ export default function RoomView({ room, onNavigate }: Props) {
     if (!pos) return;
     dragRef.current = {
       id: item.id,
-      startClientX: e.clientX,
-      startClientY: e.clientY,
-      startItemX: pos.x,
-      startItemY: pos.y,
+      startClientX: e.clientX, startClientY: e.clientY,
+      startItemX: pos.x, startItemY: pos.y,
       moved: false,
     };
   }
@@ -327,34 +237,61 @@ export default function RoomView({ room, onNavigate }: Props) {
     const dx = e.clientX - d.startClientX;
     const dy = e.clientY - d.startClientY;
     if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
-    if (d.moved) {
-      setPositions((prev) => ({
-        ...prev,
-        [d.id]: { x: d.startItemX + dx, y: d.startItemY + dy },
-      }));
-    }
+    if (d.moved)
+      setPositions((prev) => ({ ...prev, [d.id]: { x: d.startItemX + dx, y: d.startItemY + dy } }));
   }
 
-  function onPointerUp(e: React.PointerEvent, item: ContentItem) {
+  function onPointerUp(_e: React.PointerEvent, item: ContentItem) {
     if (!dragRef.current) return;
     const wasClick = !dragRef.current.moved;
     dragRef.current = null;
     if (wasClick) setZoomedItem(item);
   }
 
-  const connBySide = new Map<
-    "back" | "left" | "right",
-    (typeof room.connections)[0]
-  >();
+  function renderDoorButton(side: "back" | "left" | "right", conn: (typeof room.connections)[0]) {
+    const box = getDoorBox(side, sw, sh);
+    const pullX = side in VP_PULL ? VP_PULL[side as "left" | "right"] : 0;
+    const expand = Math.abs(pullX) * 0.6;
+    const rotation = side === "left" ? "-rotate-90" : side === "right" ? "rotate-90" : "";
+    return (
+      <button
+        key={side}
+        onClick={() => onNavigate(conn.to)}
+        onMouseEnter={() => {
+          setHoveredDoor(side);
+          if (side === "back")
+            gsap.to(zoomWrapperRef.current, { scale: 1.4, duration: 0.5, ease: "power2.out" });
+        }}
+        onMouseLeave={() => {
+          setHoveredDoor(null);
+          if (side === "back")
+            gsap.to(zoomWrapperRef.current, { scale: 1, duration: 0.3, ease: "power2.in" });
+        }}
+        className={`absolute z-20 flex flex-col items-center ${side === "back" ? "justify-end pb-2" : "justify-center"}`}
+        style={{
+          left: box.x - (pullX < 0 ? expand : 0),
+          top: box.y,
+          width: box.w + expand,
+          height: box.h,
+        }}
+      >
+        <span
+          className={`font-grotesk text-[9px] font-bold uppercase tracking-widest transition-opacity duration-200 ${rotation}`}
+          style={{ color: ROOM_ACCENT[conn.to], opacity: hoveredDoor === side ? 0.7 : 0 }}
+        >
+          {ROOMS[conn.to].name}
+        </span>
+      </button>
+    );
+  }
+
+  const connBySide = new Map<"back" | "left" | "right", (typeof room.connections)[0]>();
   for (const conn of room.connections) {
     const side = relativeSide(facing, conn.direction);
     if (side !== "behind") connBySide.set(side, conn);
   }
-  const backConn = connBySide.get("back");
-  const leftConn = connBySide.get("left");
-  const rightConn = connBySide.get("right");
 
-  const vpOff = hoveredDoor ? VP_PULL[hoveredDoor] : { x: 0, y: 0 };
+  const vpOffX = hoveredDoor && hoveredDoor in VP_PULL ? VP_PULL[hoveredDoor as "left" | "right"] : 0;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -374,9 +311,8 @@ export default function RoomView({ room, onNavigate }: Props) {
         className="absolute inset-0"
         onClick={(e) => {
           const t = e.target as HTMLElement;
-          if (!t.closest("button") && !t.closest('[class*="cursor-grab"]')) {
+          if (!t.closest("button") && !t.closest('[class*="cursor-grab"]'))
             addRipple(e.clientX, e.clientY);
-          }
         }}
       >
         <div
@@ -386,11 +322,11 @@ export default function RoomView({ room, onNavigate }: Props) {
         >
           <RoomCanvas
             roomType={room.type}
-            backDoor={backConn ? ROOM_ACCENT[backConn.to] : undefined}
-            leftDoor={leftConn ? ROOM_ACCENT[leftConn.to] : undefined}
-            rightDoor={rightConn ? ROOM_ACCENT[rightConn.to] : undefined}
-            vpOffsetX={vpOff.x}
-            vpOffsetY={vpOff.y}
+            backDoor={connBySide.get("back") ? ROOM_ACCENT[connBySide.get("back")!.to] : undefined}
+            leftDoor={connBySide.get("left") ? ROOM_ACCENT[connBySide.get("left")!.to] : undefined}
+            rightDoor={connBySide.get("right") ? ROOM_ACCENT[connBySide.get("right")!.to] : undefined}
+            vpOffsetX={vpOffX}
+            vpOffsetY={0}
           />
         </div>
 
@@ -398,14 +334,13 @@ export default function RoomView({ room, onNavigate }: Props) {
           {room.name}
         </p>
 
-        {/* Floating content items */}
         {room.content.map((item) => {
           const pos = positions[item.id];
           if (!pos) return null;
           const h = idHash(item.id);
-          const duration = 4.5 + (h % 12) * 0.35; // 4.5–8.7s — slow, dreamy
-          const delay = -((h >> 4) % 50) * 0.18; // spread start phases
-          const tilt = ((h >> 8) % 13) - 6; // –6° to +6°
+          const duration = 4.5 + (h % 12) * 0.35;
+          const delay = -((h >> 4) % 50) * 0.18;
+          const tilt = ((h >> 8) % 13) - 6;
           return (
             <div
               key={item.id}
@@ -415,18 +350,8 @@ export default function RoomView({ room, onNavigate }: Props) {
               onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerUp(e, item)}
             >
-              {/* Center + tilt */}
-              <div
-                style={{
-                  transform: `translate(-50%, -50%) rotate(${tilt}deg)`,
-                }}
-              >
-                {/* Ghost drift animation */}
-                <div
-                  style={{
-                    animation: `ghostDrift ${duration}s ease-in-out ${delay}s infinite`,
-                  }}
-                >
+              <div style={{ transform: `translate(-50%, -50%) rotate(${tilt}deg)` }}>
+                <div style={{ animation: `ghostDrift ${duration}s ease-in-out ${delay}s infinite` }}>
                   <ContentPlaceholder item={item} />
                 </div>
               </div>
@@ -434,122 +359,17 @@ export default function RoomView({ room, onNavigate }: Props) {
           );
         })}
 
-        {/* Canvas-based wall ripples with reflections */}
-        <canvas
-          ref={rippleCanvasRef}
-          className="pointer-events-none absolute inset-0 z-10"
-        />
+        <canvas ref={rippleCanvasRef} className="pointer-events-none absolute inset-0 z-10" />
 
-        {/* Door click areas */}
         {sw > 0 && (
           <>
-            {backConn &&
-              (() => {
-                const box = getDoorBox("back", sw, sh);
-                return (
-                  <button
-                    onClick={() => onNavigate(backConn.to)}
-                    onMouseEnter={() => {
-                      setHoveredDoor("back");
-                      gsap.to(zoomWrapperRef.current, {
-                        scale: 1.4,
-                        duration: 0.5,
-                        ease: "power2.out",
-                      });
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredDoor(null);
-                      gsap.to(zoomWrapperRef.current, {
-                        scale: 1,
-                        duration: 0.3,
-                        ease: "power2.in",
-                      });
-                    }}
-                    className="absolute z-20 flex flex-col items-center justify-end pb-2"
-                    style={{
-                      left: box.x,
-                      top: box.y,
-                      width: box.w,
-                      height: box.h,
-                    }}
-                  >
-                    <span
-                      className="font-grotesk text-[9px] font-bold uppercase tracking-widest transition-opacity duration-200"
-                      style={{
-                        color: ROOM_ACCENT[backConn.to],
-                        opacity: hoveredDoor === "back" ? 0.7 : 0,
-                      }}
-                    >
-                      {ROOMS[backConn.to].name}
-                    </span>
-                  </button>
-                );
-              })()}
-            {leftConn &&
-              (() => {
-                const box = getDoorBox("left", sw, sh);
-                // Extend rightward to cover the door after VP shifts right (+250 → door moves ~125px right)
-                const expand = Math.abs(VP_PULL.left.x) * 0.6;
-                return (
-                  <button
-                    onClick={() => onNavigate(leftConn.to)}
-                    onMouseEnter={() => setHoveredDoor("left")}
-                    onMouseLeave={() => setHoveredDoor(null)}
-                    className="absolute z-20 flex flex-col items-center justify-center"
-                    style={{
-                      left: box.x,
-                      top: box.y,
-                      width: box.w + expand,
-                      height: box.h,
-                    }}
-                  >
-                    <span
-                      className="font-grotesk text-[9px] font-bold uppercase tracking-widest transition-opacity duration-200 -rotate-90"
-                      style={{
-                        color: ROOM_ACCENT[leftConn.to],
-                        opacity: hoveredDoor === "left" ? 0.7 : 0,
-                      }}
-                    >
-                      {ROOMS[leftConn.to].name}
-                    </span>
-                  </button>
-                );
-              })()}
-            {rightConn &&
-              (() => {
-                const box = getDoorBox("right", sw, sh);
-                // Extend leftward to cover the door after VP shifts left (−250 → door moves ~125px left)
-                const expand = Math.abs(VP_PULL.right.x) * 0.6;
-                return (
-                  <button
-                    onClick={() => onNavigate(rightConn.to)}
-                    onMouseEnter={() => setHoveredDoor("right")}
-                    onMouseLeave={() => setHoveredDoor(null)}
-                    className="absolute z-20 flex flex-col items-center justify-center"
-                    style={{
-                      left: box.x - expand,
-                      top: box.y,
-                      width: box.w + expand,
-                      height: box.h,
-                    }}
-                  >
-                    <span
-                      className="font-grotesk text-[9px] font-bold uppercase tracking-widest transition-opacity duration-200 rotate-90"
-                      style={{
-                        color: ROOM_ACCENT[rightConn.to],
-                        opacity: hoveredDoor === "right" ? 0.7 : 0,
-                      }}
-                    >
-                      {ROOMS[rightConn.to].name}
-                    </span>
-                  </button>
-                );
-              })()}
+            {connBySide.get("back") && renderDoorButton("back", connBySide.get("back")!)}
+            {connBySide.get("left") && renderDoorButton("left", connBySide.get("left")!)}
+            {connBySide.get("right") && renderDoorButton("right", connBySide.get("right")!)}
           </>
         )}
       </div>
 
-      {/* Item zoom lightbox */}
       {zoomedItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
@@ -567,7 +387,6 @@ export default function RoomView({ room, onNavigate }: Props) {
         </div>
       )}
 
-      {/* Rotation controls */}
       <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-5">
         <button
           onClick={() => turn("left")}
