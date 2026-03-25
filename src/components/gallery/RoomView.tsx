@@ -80,11 +80,100 @@ interface DragState {
   moved: boolean;
 }
 
+type WallSurface = 'back' | 'floor' | 'ceiling' | 'left' | 'right'
+
 interface RippleWave {
-  ox: number;
-  oy: number;
-  startTime: number;
-  baseAlpha: number;
+  surface: WallSurface
+  ox: number
+  oy: number
+  startTime: number
+  baseAlpha: number
+}
+
+// Room surface geometry derived from screen size
+function roomGeo(sw: number, sh: number) {
+  const vpx = sw / 2, vpy = sh * 0.42
+  const bx0 = vpx - sw * 0.16, bx1 = vpx + sw * 0.16
+  const by0 = vpy - sh * 0.25, by1 = vpy + sh * 0.25
+  return {
+    vpx, vpy, bx0, bx1, by0, by1, sw, sh,
+    polys: {
+      back:    [[bx0,by0],[bx1,by0],[bx1,by1],[bx0,by1]],
+      floor:   [[bx0,by1],[bx1,by1],[sw,sh],[0,sh]],
+      ceiling: [[0,0],[sw,0],[bx1,by0],[bx0,by0]],
+      left:    [[0,0],[bx0,by0],[bx0,by1],[0,sh]],
+      right:   [[bx1,by0],[sw,0],[sw,sh],[bx1,by1]],
+    } as Record<WallSurface, [number, number][]>,
+  }
+}
+
+type RoomGeo = ReturnType<typeof roomGeo>
+
+function pointInPoly(px: number, py: number, poly: [number, number][]): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j]
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
+      inside = !inside
+  }
+  return inside
+}
+
+function whichSurface(px: number, py: number, geo: RoomGeo): WallSurface {
+  for (const s of ['back', 'floor', 'ceiling', 'left', 'right'] as WallSurface[])
+    if (pointInPoly(px, py, geo.polys[s])) return s
+  return 'floor'
+}
+
+function closestOnSeg(
+  px: number, py: number,
+  ax: number, ay: number, bx: number, by: number,
+): [number, number] {
+  const dx = bx - ax, dy = by - ay
+  const len2 = dx * dx + dy * dy
+  if (len2 === 0) return [ax, ay]
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2))
+  return [ax + t * dx, ay + t * dy]
+}
+
+// Shared boundary segment between two adjacent surfaces, null if non-adjacent.
+function surfaceBoundary(a: WallSurface, b: WallSurface, geo: RoomGeo): [number, number, number, number] | null {
+  const { bx0, bx1, by0, by1, sw, sh } = geo
+  const key = [a, b].sort().join('-')
+  switch (key) {
+    case 'back-floor':    return [bx0, by1, bx1, by1]
+    case 'back-ceiling':  return [bx0, by0, bx1, by0]
+    case 'back-left':     return [bx0, by0, bx0, by1]
+    case 'back-right':    return [bx1, by0, bx1, by1]
+    case 'floor-left':    return [bx0, by1, 0,  sh]
+    case 'floor-right':   return [bx1, by1, sw, sh]
+    case 'ceiling-left':  return [0,   0,   bx0, by0]
+    case 'ceiling-right': return [bx1, by0, sw,  0]
+    default:              return null // floor↔ceiling and left↔right are non-adjacent
+  }
+}
+
+// Returns [xScale, yScale] for perspective-correct ellipse on each surface.
+// Near the VP (depth → ∞) the surface compresses toward zero; near the viewer it's 1.
+function surfaceScale(surface: WallSurface, ox: number, oy: number, geo: RoomGeo): [number, number] {
+  const { vpx, bx0, bx1, by0, by1, sw, sh } = geo
+  const bw = bx1 - bx0
+  switch (surface) {
+    case 'floor': {
+      // Floor trapezoid widens from bw (at by1) to sw (at sh).
+      // A circle near the back wall is nearly round; near the viewer it's very flat.
+      const widthAtY = bw + (oy - by1) * (sw - bw) / (sh - by1)
+      return [1, (sh - by1) / widthAtY]
+    }
+    case 'ceiling': {
+      // Ceiling trapezoid widens from bw (at by0) to sw (at y=0).
+      const widthAtY = bw + (by0 - oy) * (sw - bw) / by0
+      return [1, by0 / widthAtY]
+    }
+    case 'left':  return [Math.max(0.06, (vpx - ox) / vpx), 1]
+    case 'right': return [Math.max(0.06, (ox - vpx) / (sw - vpx)), 1]
+    case 'back':  return [1, 1]
+  }
 }
 
 const RIPPLE_SPEED = 0.85;
@@ -164,18 +253,37 @@ export default function RoomView({ room, onNavigate }: Props) {
     );
 
     const color = rippleColorRef.current;
-    for (const s of rippleSourcesRef.current) {
-      const elapsed = now - s.startTime;
-      const alpha = s.baseAlpha * Math.max(0, 1 - elapsed / RIPPLE_LIFETIME);
+    const geo = roomGeo(canvas.width, canvas.height);
+
+    for (const wave of rippleSourcesRef.current) {
+      if (now < wave.startTime) continue;
+      const elapsed = now - wave.startTime;
+      const r = elapsed * RIPPLE_SPEED;
+      const alpha = wave.baseAlpha * Math.max(0, 1 - elapsed / RIPPLE_LIFETIME);
       if (alpha < 0.005) continue;
+
+      const [xs, ys] = surfaceScale(wave.surface, wave.ox, wave.oy, geo);
+      const poly = geo.polys[wave.surface];
+
       ctx.save();
+      // Clip to the surface polygon so the ripple stays on its wall
+      ctx.beginPath();
+      ctx.moveTo(poly[0][0], poly[0][1]);
+      for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+      ctx.closePath();
+      ctx.clip();
+
       ctx.strokeStyle = color;
       ctx.globalAlpha = alpha;
       ctx.lineWidth = 1.5;
       ctx.shadowColor = color;
       ctx.shadowBlur = 10;
+
+      // Scale around the click origin to produce a perspective-correct ellipse
+      ctx.translate(wave.ox, wave.oy);
+      ctx.scale(xs, ys);
       ctx.beginPath();
-      ctx.arc(s.ox, s.oy, elapsed * RIPPLE_SPEED, 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -185,14 +293,41 @@ export default function RoomView({ room, onNavigate }: Props) {
   }
 
   function addRipple(x: number, y: number) {
+    if (sw === 0) return;
     const now = performance.now();
-    rippleSourcesRef.current.push(
-      { ox: x,        oy: y,        startTime: now, baseAlpha: 0.75 },
-      { ox: -x,       oy: y,        startTime: now, baseAlpha: 0.35 },
-      { ox: 2*sw - x, oy: y,        startTime: now, baseAlpha: 0.35 },
-      { ox: x,        oy: -y,       startTime: now, baseAlpha: 0.35 },
-      { ox: x,        oy: 2*sh - y, startTime: now, baseAlpha: 0.35 },
-    );
+    const geo = roomGeo(sw, sh);
+    const surface = whichSurface(x, y, geo);
+    const [xs, ys] = surfaceScale(surface, x, y, geo);
+
+    rippleSourcesRef.current.push({ surface, ox: x, oy: y, startTime: now, baseAlpha: 0.75 });
+
+    const ALL_SURFACES: WallSurface[] = ['back', 'floor', 'ceiling', 'left', 'right'];
+
+    for (const target of ALL_SURFACES) {
+      if (target === surface) continue;
+
+      const direct = surfaceBoundary(surface, target, geo);
+      if (direct) {
+        // Adjacent: wave travels directly through the shared edge.
+        const [ex, ey] = closestOnSeg(x, y, direct[0], direct[1], direct[2], direct[3]);
+        const dx = (ex - x) * xs, dy = (ey - y) * ys;
+        const delay = Math.sqrt(dx * dx + dy * dy) / RIPPLE_SPEED;
+        rippleSourcesRef.current.push({ surface: target, ox: ex, oy: ey, startTime: now + delay, baseAlpha: 0.45 });
+      } else {
+        // Non-adjacent (floor↔ceiling or left↔right): route through the back wall.
+        const toBack = surfaceBoundary(surface, 'back', geo)!;
+        const [bx, by] = closestOnSeg(x, y, toBack[0], toBack[1], toBack[2], toBack[3]);
+        const dx1 = (bx - x) * xs, dy1 = (by - y) * ys;
+        const delay1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) / RIPPLE_SPEED;
+
+        const fromBack = surfaceBoundary('back', target, geo)!;
+        const [ex, ey] = closestOnSeg(bx, by, fromBack[0], fromBack[1], fromBack[2], fromBack[3]);
+        const delay2 = Math.hypot(ex - bx, ey - by) / RIPPLE_SPEED;
+
+        rippleSourcesRef.current.push({ surface: target, ox: ex, oy: ey, startTime: now + delay1 + delay2, baseAlpha: 0.35 });
+      }
+    }
+
     cancelAnimationFrame(rippleRafRef.current);
     rippleRafRef.current = requestAnimationFrame(drawRipples);
   }
