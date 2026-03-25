@@ -13,6 +13,7 @@ const FOCAL_LENGTH = 300;
 const NEBULA_START_Z = 8000;
 const NEBULA_MIN_Z = 60;
 
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Star {
@@ -410,6 +411,7 @@ export default function EntranceScene({ locale }: { locale: string }) {
     );
     const nebulae: Nebula[] = [];
     const gravityWells: GravityWell[] = [];
+
     let shape: SurrealistShape | null = null;
 
     const DURATION = 6000;

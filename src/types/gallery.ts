@@ -24,6 +24,7 @@ export interface ContentItem {
   id: string
   type: ContentType
   title: string
+  wall: Direction
 }
 
 export interface Connection {

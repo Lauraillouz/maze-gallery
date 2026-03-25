@@ -19,8 +19,8 @@ export const ROOMS: Record<RoomType, Room> = {
       { direction: Direction.East, to: RoomType.Library },
     ],
     content: [
-      { id: 'en-1', type: ContentType.Artwork, title: 'Welcome Piece' },
-      { id: 'en-2', type: ContentType.Article, title: 'Introduction' },
+      { id: 'en-1', type: ContentType.Artwork, title: 'Welcome Piece', wall: Direction.North },
+      { id: 'en-2', type: ContentType.Article, title: 'Introduction',  wall: Direction.East },
     ],
   },
 
@@ -32,12 +32,12 @@ export const ROOMS: Record<RoomType, Room> = {
     connections: [
       { direction: Direction.South, to: RoomType.Entrance },
       { direction: Direction.North, to: RoomType.Studio },
-      { direction: Direction.East, to: RoomType.Salon },
+      { direction: Direction.East,  to: RoomType.Salon },
     ],
     content: [
-      { id: 'ga-1', type: ContentType.Artwork, title: 'Garden I' },
-      { id: 'ga-2', type: ContentType.Artwork, title: 'Garden II' },
-      { id: 'ga-3', type: ContentType.Book, title: 'Garden Journal' },
+      { id: 'ga-1', type: ContentType.Artwork, title: 'Garden I',       wall: Direction.North },
+      { id: 'ga-2', type: ContentType.Artwork, title: 'Garden II',      wall: Direction.West },
+      { id: 'ga-3', type: ContentType.Book,    title: 'Garden Journal', wall: Direction.East },
     ],
   },
 
@@ -47,13 +47,13 @@ export const ROOMS: Record<RoomType, Room> = {
     x: 3,
     y: 2,
     connections: [
-      { direction: Direction.West, to: RoomType.Entrance },
+      { direction: Direction.West,  to: RoomType.Entrance },
       { direction: Direction.North, to: RoomType.Archive },
     ],
     content: [
-      { id: 'li-1', type: ContentType.Book, title: 'Collected Works' },
-      { id: 'li-2', type: ContentType.Book, title: 'References' },
-      { id: 'li-3', type: ContentType.Article, title: 'Reading List' },
+      { id: 'li-1', type: ContentType.Book,    title: 'Collected Works', wall: Direction.North },
+      { id: 'li-2', type: ContentType.Book,    title: 'References',      wall: Direction.North },
+      { id: 'li-3', type: ContentType.Article, title: 'Reading List',    wall: Direction.East },
     ],
   },
 
@@ -64,10 +64,10 @@ export const ROOMS: Record<RoomType, Room> = {
     y: 1,
     connections: [{ direction: Direction.South, to: RoomType.Garden }],
     content: [
-      { id: 'st-1', type: ContentType.Artwork, title: 'Work in Progress' },
-      { id: 'st-2', type: ContentType.Artwork, title: 'Sketch Series' },
-      { id: 'st-3', type: ContentType.Artwork, title: 'Study' },
-      { id: 'st-4', type: ContentType.Article, title: 'Process Notes' },
+      { id: 'st-1', type: ContentType.Artwork,  title: 'Work in Progress', wall: Direction.North },
+      { id: 'st-2', type: ContentType.Artwork,  title: 'Sketch Series',    wall: Direction.North },
+      { id: 'st-3', type: ContentType.Artwork,  title: 'Study',            wall: Direction.West },
+      { id: 'st-4', type: ContentType.Article,  title: 'Process Notes',    wall: Direction.East },
     ],
   },
 
@@ -78,12 +78,12 @@ export const ROOMS: Record<RoomType, Room> = {
     y: 1,
     connections: [
       { direction: Direction.South, to: RoomType.Library },
-      { direction: Direction.West, to: RoomType.Salon },
+      { direction: Direction.West,  to: RoomType.Salon },
     ],
     content: [
-      { id: 'ar-1', type: ContentType.Artwork, title: 'Early Work' },
-      { id: 'ar-2', type: ContentType.Book, title: 'Archive Vol. I' },
-      { id: 'ar-3', type: ContentType.Article, title: 'Historical Notes' },
+      { id: 'ar-1', type: ContentType.Artwork,  title: 'Early Work',        wall: Direction.North },
+      { id: 'ar-2', type: ContentType.Book,     title: 'Archive Vol. I',    wall: Direction.West },
+      { id: 'ar-3', type: ContentType.Article,  title: 'Historical Notes',  wall: Direction.East },
     ],
   },
 
@@ -97,9 +97,9 @@ export const ROOMS: Record<RoomType, Room> = {
       { direction: Direction.East, to: RoomType.Archive },
     ],
     content: [
-      { id: 'sa-1', type: ContentType.Artwork, title: 'Guest Work I' },
-      { id: 'sa-2', type: ContentType.Artwork, title: 'Guest Work II' },
-      { id: 'sa-3', type: ContentType.Article, title: 'Guest Notes' },
+      { id: 'sa-1', type: ContentType.Artwork,  title: 'Guest Work I',   wall: Direction.North },
+      { id: 'sa-2', type: ContentType.Artwork,  title: 'Guest Work II',  wall: Direction.North },
+      { id: 'sa-3', type: ContentType.Article,  title: 'Guest Notes',    wall: Direction.East },
     ],
   },
 }
