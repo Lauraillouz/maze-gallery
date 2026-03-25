@@ -131,6 +131,8 @@ export default function RoomView({ room, onNavigate }: Props) {
   useEffect(() => {
     rippleColorRef.current = ROOM_ACCENT[room.type];
     setHoveredDoor(null);
+    gsap.killTweensOf(zoomWrapperRef.current);
+    gsap.set(zoomWrapperRef.current, { scale: 1 });
   }, [room.type]);
 
   useEffect(() => {
