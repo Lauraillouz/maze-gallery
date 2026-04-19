@@ -5,7 +5,8 @@ import gsap from "gsap";
 import { ContentItem, Direction, Room, RoomType } from "@/types/gallery";
 import { ROOMS } from "@/data/rooms";
 import RoomCanvas from "./RoomCanvas";
-import ContentPlaceholder from "./ContentPlaceholder";
+import ItemCard from "./ItemCard";
+import ItemDetail from "./ItemDetail";
 
 const DIRS = [Direction.North, Direction.East, Direction.South, Direction.West];
 
@@ -493,7 +494,7 @@ export default function RoomView({ room, onNavigate }: Props) {
             >
               <div style={{ transform: `translate(-50%, -50%) rotate(${tilt}deg)` }}>
                 <div style={{ animation: `ghostDrift ${duration}s ease-in-out ${delay}s infinite` }}>
-                  <ContentPlaceholder item={item} />
+                  <ItemCard item={item} />
                 </div>
               </div>
             </div>
@@ -511,22 +512,7 @@ export default function RoomView({ room, onNavigate }: Props) {
         )}
       </div>
 
-      {zoomedItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
-          onClick={() => setZoomedItem(null)}
-        >
-          <div style={{ transform: "scale(2.4)", pointerEvents: "none" }}>
-            <ContentPlaceholder item={zoomedItem} />
-          </div>
-          <button
-            className="absolute right-8 top-8 font-grotesk text-[10px] font-bold uppercase tracking-widest text-[#FFFBE0]/50 hover:text-[#FFFBE0]"
-            onClick={() => setZoomedItem(null)}
-          >
-            Close
-          </button>
-        </div>
-      )}
+      {zoomedItem && <ItemDetail item={zoomedItem} onClose={() => setZoomedItem(null)} />}
 
       <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-5">
         <button
