@@ -137,10 +137,12 @@ const GalleryRoom = forwardRef<
     if (!maybeCtx) return;
     const ctx: CanvasRenderingContext2D = maybeCtx;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const W = canvas.width;
-    const H = canvas.height;
+    const onResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
 
     function randPos(wall: "back" | "left" | "right") {
       const wx = wall === "back" ? 0.08 + Math.random() * 0.84 : 0.15 + Math.random() * 0.70
@@ -166,8 +168,8 @@ const GalleryRoom = forwardRef<
     const portalRings: PortalRing[] = [];
 
     const blobs: Blob[] = Array.from({ length: 14 }, (_, i) => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
       vx: (Math.random() - 0.5) * 0.55,
       vy: (Math.random() - 0.5) * 0.4,
       r: 16 + Math.random() * 65,
@@ -228,6 +230,8 @@ const GalleryRoom = forwardRef<
 
     function draw() {
       tick++;
+      const W = ctx.canvas.width;
+      const H = ctx.canvas.height;
       ctx.clearRect(0, 0, W, H);
 
       const vpx = W / 2 + Math.sin(tick * 0.004) * 5;
@@ -564,7 +568,10 @@ const GalleryRoom = forwardRef<
     }
 
     draw();
-    return () => cancelAnimationFrame(animRef.current);
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener("resize", onResize);
+    };
   }, [ref]);
 
   return (

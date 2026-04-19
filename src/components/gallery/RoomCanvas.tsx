@@ -360,9 +360,12 @@ export default function RoomCanvas({ roomType, backDoor, leftDoor, rightDoor, vp
       // ── Doors — all drawn with the same function at sRange [0.30, 0.70] ──────
       const { backDoor, leftDoor, rightDoor } = doorsRef.current
 
-      // All three walls use the same sRange so doors are visually centered
-      // and consistent when the player turns
-      const S: [number, number] = [0.40, 0.60]
+      // Door S-range adapts to maintain a consistent width/height ratio.
+      // On narrow screens bw shrinks but bh stays large, making doors elongated
+      // with a fixed S. We solve for ds so that (bw*ds)/(bh*dt) ≈ desktop ratio.
+      const doorDt = DOOR_T[1] - DOOR_T[0]
+      const doorDs = Math.min(0.75, Math.max(0.20, 0.44 * bh * doorDt / bw))
+      const S: [number, number] = [0.5 - doorDs / 2, 0.5 + doorDs / 2]
 
       if (backDoor) {
         const backWall: [[number,number],[number,number],[number,number],[number,number]] = [

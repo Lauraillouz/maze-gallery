@@ -140,6 +140,8 @@ export default function MapCanvas({ visited, current }: Props) {
   const animatingRef = useRef(false)
   const visitedRef = useRef(visited)
   const currentRef = useRef(current)
+  // Responsive mini size — shrinks on narrow viewports so it doesn't crowd the screen
+  const miniDimsRef = useRef({ w: MINI_W, h: MINI_H })
 
   // Keep refs in sync with props each render
   visitedRef.current = visited
@@ -149,19 +151,40 @@ export default function MapCanvas({ visited, current }: Props) {
   function redraw(isExpanded = expandedRef.current) {
     const canvas = canvasRef.current
     if (!canvas) return
-    const w = isExpanded ? window.innerWidth : MINI_W
-    const h = isExpanded ? window.innerHeight : MINI_H
+    const w = isExpanded ? window.innerWidth : miniDimsRef.current.w
+    const h = isExpanded ? window.innerHeight : miniDimsRef.current.h
     drawMap(canvas, w, h, visitedRef.current, currentRef.current)
   }
 
-  // Mount: initial draw + fade in
+  // Mount: compute responsive size, initial draw + fade in
   useEffect(() => {
+    function updateMiniSize() {
+      const vw = window.innerWidth
+      // On narrow screens cap mini map to ~30% of viewport width
+      const scale = vw < 640 ? Math.min(1, (vw * 0.30) / MINI_W) : 1
+      miniDimsRef.current = {
+        w: Math.floor(MINI_W * scale),
+        h: Math.floor(MINI_H * scale),
+      }
+      if (!expandedRef.current && containerRef.current) {
+        gsap.set(containerRef.current, {
+          width: miniDimsRef.current.w,
+          height: miniDimsRef.current.h,
+        })
+        redraw(false)
+      }
+    }
+    updateMiniSize()
+    window.addEventListener('resize', updateMiniSize)
+
     redraw(false)
     gsap.fromTo(
       containerRef.current,
       { opacity: 0, x: -12 },
       { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' },
     )
+
+    return () => window.removeEventListener('resize', updateMiniSize)
   // redraw is stable — it reads from refs, not closed-over props
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -199,8 +222,8 @@ export default function MapCanvas({ visited, current }: Props) {
       })
     } else {
       gsap.to(container, {
-        width: MINI_W,
-        height: MINI_H,
+        width: miniDimsRef.current.w,
+        height: miniDimsRef.current.h,
         bottom: 16,
         left: 16,
         duration: 0.3,
@@ -217,7 +240,7 @@ export default function MapCanvas({ visited, current }: Props) {
   return (
     <div
       ref={containerRef}
-      className="fixed z-50 cursor-pointer overflow-hidden border border-[#FF2D9B]/25 bg-[#08000F]"
+      className="fixed z-50 cursor-pointer overflow-hidden border border-[#FF2D9B]/25 bg-[#08000F] touch-manipulation"
       style={{ bottom: 16, left: 16, width: MINI_W, height: MINI_H }}
       onClick={toggleExpand}
     >
