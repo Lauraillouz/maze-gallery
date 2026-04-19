@@ -69,6 +69,19 @@ export default function GalleryPage() {
           Pick up map
         </button>
       )}
+<<<<<<< Updated upstream
+=======
+
+      {/* Exit button — top left */}
+      <button ref={exitBtnRef} onClick={exitGallery} className="fixed left-4 top-4 z-50 border bg-[#08000F]/70 px-3 py-2 font-grotesk text-[10px] font-bold uppercase tracking-widest touch-manipulation" style={{ color: '#FF2D9B', borderColor: '#FF2D9B' }}>
+        ⊗ leave
+      </button>
+
+      {/* Cart button — top right */}
+      <button className="fixed right-4 top-4 z-50 border border-[#FFFBE0]/20 bg-[#08000F]/90 px-4 py-2 font-grotesk text-[10px] font-bold uppercase tracking-widest text-[#FFFBE0]/60 hover:border-[#FFFBE0]/40 hover:text-[#FFFBE0]/90 touch-manipulation">
+        Cart {totalCount > 0 && `· ${totalCount}`}
+      </button>
+>>>>>>> Stashed changes
     </div>
   )
 }
