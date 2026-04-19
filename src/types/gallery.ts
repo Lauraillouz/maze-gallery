@@ -29,10 +29,10 @@ export interface ContentItem {
   artist: string
   medium?: string
   description?: string
-  price?: number        // USD
-  editionSize?: number  // limited edition total
+  price?: number
+  editionSize?: number
   editionNumber?: number
-  size?: string         // e.g. "40 × 60 cm" — artworks only
+  size?: string
   forSale: boolean
   imageUrl?: string
 }
@@ -45,7 +45,7 @@ export interface Connection {
 export interface Room {
   type: RoomType
   name: string
-  x: number // map grid position
+  x: number
   y: number
   connections: Connection[]
   content: ContentItem[]

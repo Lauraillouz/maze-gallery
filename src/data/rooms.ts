@@ -18,8 +18,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Hortense Veil",
         medium: "Oil on linen",
-        description:
-          "A liminal space between worlds — the first painting visitors encounter.",
+        description: "A liminal space between worlds — the first painting visitors encounter.",
         size: "120 × 90 cm",
         price: 4200,
         forSale: true,
@@ -30,8 +29,7 @@ export const ROOMS: Record<RoomType, Room> = {
         title: "Manifesto",
         wall: Direction.East,
         artist: "Hortense Veil",
-        description:
-          "The founding text of the gallery. On labyrinths, perception, and the gaze.",
+        description: "The founding text of the gallery. On labyrinths, perception, and the gaze.",
         forSale: false,
       },
     ],
@@ -55,8 +53,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Hortense Veil",
         medium: "Risograph print",
-        description:
-          "First in a series of botanical fever-dreams. 2-color risograph on munken paper.",
+        description: "First in a series of botanical fever-dreams. 2-color risograph on munken paper.",
         size: "50 × 70 cm",
         price: 380,
         editionSize: 40,
@@ -70,8 +67,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.West,
         artist: "Hortense Veil",
         medium: "Risograph print",
-        description:
-          "Companion piece to Garden I. Dense foliage, impossible geometry.",
+        description: "Companion piece to Garden I. Dense foliage, impossible geometry.",
         size: "50 × 70 cm",
         price: 380,
         editionSize: 40,
@@ -85,8 +81,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.East,
         artist: "Hortense Veil",
         medium: "Artist book, softcover",
-        description:
-          "88 pages of field notes, drawings, and pressed specimens. Offset printed.",
+        description: "88 pages of field notes, drawings, and pressed specimens. Offset printed.",
         price: 28,
         forSale: true,
       },
@@ -110,8 +105,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Hortense Veil",
         medium: "Hardcover monograph",
-        description:
-          "A survey of the first decade. 240 pages, sewn binding, full-color plates.",
+        description: "A survey of the first decade. 240 pages, sewn binding, full-color plates.",
         price: 65,
         forSale: true,
       },
@@ -122,8 +116,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Hortense Veil",
         medium: "Zine, A5",
-        description:
-          "A curated reading list with annotations. 32 pages, risograph.",
+        description: "A curated reading list with annotations. 32 pages, risograph.",
         price: 12,
         editionSize: 200,
         editionNumber: 88,
@@ -155,8 +148,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Hortense Veil",
         medium: "Acrylic on canvas",
-        description:
-          "Not yet for sale. Shown here as a gesture of transparency.",
+        description: "Not yet for sale. Shown here as a gesture of transparency.",
         size: "80 × 100 cm",
         forSale: false,
       },
@@ -190,8 +182,7 @@ export const ROOMS: Record<RoomType, Room> = {
         title: "Process Notes",
         wall: Direction.East,
         artist: "Hortense Veil",
-        description:
-          "Raw notes on methodology — what works, what fails, what stays.",
+        description: "Raw notes on methodology — what works, what fails, what stays.",
         forSale: false,
       },
       {
@@ -201,8 +192,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.South,
         artist: "Hortense Veil",
         medium: "CD",
-        description:
-          "Field recordings and improvised piano from the studio sessions. Digipak.",
+        description: "Field recordings and improvised piano from the studio sessions. Digipak.",
         price: 16,
         forSale: true,
       },
@@ -250,8 +240,7 @@ export const ROOMS: Record<RoomType, Room> = {
         title: "Historical Notes",
         wall: Direction.East,
         artist: "Hortense Veil",
-        description:
-          "Context for the archive — the years, the places, the influences.",
+        description: "Context for the archive — the years, the places, the influences.",
         forSale: false,
       },
     ],
@@ -274,8 +263,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Mara Özdemir",
         medium: "Screen print",
-        description:
-          "A guest contribution by Berlin-based Mara Özdemir. 3-color screenprint.",
+        description: "A guest contribution by Berlin-based Mara Özdemir. 3-color screenprint.",
         size: "40 × 50 cm",
         price: 290,
         editionSize: 30,
@@ -289,8 +277,7 @@ export const ROOMS: Record<RoomType, Room> = {
         wall: Direction.North,
         artist: "Léo Tanaka",
         medium: "Digital print on archival paper",
-        description:
-          "Tokyo-based Léo Tanaka's contribution to the salon series.",
+        description: "Tokyo-based Léo Tanaka's contribution to the salon series.",
         size: "30 × 45 cm",
         price: 220,
         editionSize: 50,
@@ -312,9 +299,8 @@ export const ROOMS: Record<RoomType, Room> = {
         title: "Salon Sessions",
         wall: Direction.West,
         artist: "Éliane Morel",
-        medium: 'Vinyl 12"',
-        description:
-          "Ambient compositions recorded live in the gallery. 180g pressing, includes download code.",
+        medium: "Vinyl 12\"",
+        description: "Ambient compositions recorded live in the gallery. 180g pressing, includes download code.",
         price: 32,
         editionSize: 150,
         editionNumber: 44,
