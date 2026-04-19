@@ -4,12 +4,14 @@ const TYPE_ACCENT: Record<ContentType, string> = {
   [ContentType.Artwork]: '#FF2D9B',
   [ContentType.Book]:    '#00D4C8',
   [ContentType.Article]: '#F5E000',
+  [ContentType.Music]:   '#A000FF',
 }
 
 const TYPE_TAG: Record<ContentType, string> = {
   [ContentType.Artwork]: 'Artwork',
   [ContentType.Book]:    'Book',
   [ContentType.Article]: 'Article',
+  [ContentType.Music]:   'Music',
 }
 
 function ImageArea({ type, accent }: { type: ContentType; accent: string }) {
@@ -27,6 +29,17 @@ function ImageArea({ type, accent }: { type: ContentType; accent: string }) {
     return (
       <div style={{ width: 52, height: 72, background: `${accent}20`, border: `1px solid ${accent}55`, borderRadius: 1 }}>
         <div style={{ width: 4, height: '100%', background: `${accent}55`, float: 'left' }} />
+      </div>
+    )
+  }
+  if (type === ContentType.Music) {
+    // Vinyl disc
+    return (
+      <div className="flex items-center justify-center" style={{ width: 72, height: 72 }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: `${accent}22`, border: `1px solid ${accent}55`, position: 'relative' }}>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `repeating-radial-gradient(circle, transparent 10px, ${accent}11 11px, transparent 12px)` }} />
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 14, height: 14, borderRadius: '50%', background: `${accent}55`, border: `1px solid ${accent}` }} />
+        </div>
       </div>
     )
   }
@@ -70,6 +83,11 @@ export default function ItemCard({ item }: { item: ContentItem }) {
         <p className="font-grotesk text-[8px] leading-tight" style={{ color: `${accent}66` }}>
           {item.artist}
         </p>
+        {item.size && (
+          <p className="font-grotesk text-[7px] leading-tight" style={{ color: `${accent}44` }}>
+            {item.size}
+          </p>
+        )}
       </div>
 
       {/* Price / for sale indicator */}
