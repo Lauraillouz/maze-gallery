@@ -25,6 +25,14 @@ export interface ContentItem {
   type: ContentType
   title: string
   wall: Direction
+  artist: string
+  medium?: string
+  description?: string
+  price?: number        // USD
+  editionSize?: number  // limited edition total
+  editionNumber?: number
+  forSale: boolean
+  imageUrl?: string
 }
 
 export interface Connection {
