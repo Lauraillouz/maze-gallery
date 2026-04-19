@@ -8,6 +8,7 @@ import { ROOMS } from "@/data/rooms";
 import { CartProvider, useCart } from "@/lib/cart";
 import RoomView from "./RoomView";
 import MapCanvas from "./MapCanvas";
+import CartDrawer from "./CartDrawer";
 
 const MAP_STORAGE_KEY = "hortense_has_map";
 const PSYCHEDELIC_COLORS = ["#FF2D9B", "#A000FF", "#00D4C8", "#82E000", "#FF6400", "#F5E000"];
@@ -17,6 +18,7 @@ function GalleryInner() {
   const pathname = usePathname();
   const { totalCount } = useCart();
   const [hasMap, setHasMap] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [currentRoom, setCurrentRoom] = useState(RoomType.Entrance);
   const [visited, setVisited] = useState<Set<RoomType>>(new Set([RoomType.Entrance]));
   const [transitioning, setTransitioning] = useState(false);
@@ -120,9 +122,14 @@ function GalleryInner() {
       </button>
 
       {/* Cart button */}
-      <button className="fixed right-4 top-4 z-50 border border-[#FFFBE0]/20 bg-[#08000F]/90 px-4 py-2 font-grotesk text-[10px] font-bold uppercase tracking-widest text-[#FFFBE0]/60 hover:border-[#FFFBE0]/40 hover:text-[#FFFBE0]/90 touch-manipulation">
+      <button
+        onClick={() => setCartOpen(true)}
+        className="fixed right-4 top-4 z-50 border border-[#FFFBE0]/20 bg-[#08000F]/90 px-4 py-2 font-grotesk text-[10px] font-bold uppercase tracking-widest text-[#FFFBE0]/60 hover:border-[#FFFBE0]/40 hover:text-[#FFFBE0]/90 touch-manipulation"
+      >
         Cart{totalCount > 0 && ` · ${totalCount}`}
       </button>
+
+      {cartOpen && <CartDrawer onClose={() => setCartOpen(false)} />}
     </div>
   );
 }
