@@ -34,7 +34,6 @@ export const ROOMS: Record<RoomType, Room> = {
       },
     ],
   },
-
   [RoomType.Garden]: {
     type: RoomType.Garden,
     name: "The Garden",
@@ -87,7 +86,6 @@ export const ROOMS: Record<RoomType, Room> = {
       },
     ],
   },
-
   [RoomType.Library]: {
     type: RoomType.Library,
     name: "The Library",
@@ -133,7 +131,6 @@ export const ROOMS: Record<RoomType, Room> = {
       },
     ],
   },
-
   [RoomType.Studio]: {
     type: RoomType.Studio,
     name: "The Studio",
@@ -198,7 +195,6 @@ export const ROOMS: Record<RoomType, Room> = {
       },
     ],
   },
-
   [RoomType.Archive]: {
     type: RoomType.Archive,
     name: "The Archive",
@@ -245,7 +241,6 @@ export const ROOMS: Record<RoomType, Room> = {
       },
     ],
   },
-
   [RoomType.Salon]: {
     type: RoomType.Salon,
     name: "The Salon",
@@ -299,7 +294,7 @@ export const ROOMS: Record<RoomType, Room> = {
         title: "Salon Sessions",
         wall: Direction.West,
         artist: "Éliane Morel",
-        medium: "Vinyl 12\"",
+        medium: 'Vinyl 12"',
         description: "Ambient compositions recorded live in the gallery. 180g pressing, includes download code.",
         price: 32,
         editionSize: 150,
