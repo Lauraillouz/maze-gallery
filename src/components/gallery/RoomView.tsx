@@ -513,11 +513,7 @@ export default function RoomView({ room, onNavigate }: Props) {
       </div>
 
       {zoomedItem && (
-        <ItemDetail
-          item={zoomedItem}
-          onClose={() => setZoomedItem(null)}
-          onAddToCart={(item) => console.log('add to cart', item.id)}
-        />
+        <ItemDetail item={zoomedItem} onClose={() => setZoomedItem(null)} />
       )}
 
       <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-5">
