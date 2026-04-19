@@ -16,6 +16,11 @@ const TYPE_CONFIG: Record<ContentType, { border: string; bg: string; tag: string
     bg: 'rgba(245,224,0,0.07)',
     tag: 'Article',
   },
+  [ContentType.Music]: {
+    border: '#A000FF',
+    bg: 'rgba(160,0,255,0.07)',
+    tag: 'Music',
+  },
 }
 
 export default function ContentPlaceholder({ item }: { item: ContentItem }) {
