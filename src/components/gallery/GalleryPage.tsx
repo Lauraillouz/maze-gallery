@@ -9,11 +9,12 @@ import { CartProvider, useCart } from "@/lib/cart";
 import RoomView from "./RoomView";
 import MapCanvas from "./MapCanvas";
 import CartDrawer from "./CartDrawer";
+import { Room } from "@/types/gallery";
 
 const MAP_STORAGE_KEY = "hortense_has_map";
 const PSYCHEDELIC_COLORS = ["#FF2D9B", "#A000FF", "#00D4C8", "#82E000", "#FF6400", "#F5E000"];
 
-function GalleryInner() {
+function GalleryInner({ rooms }: { rooms: Record<RoomType, Room> }) {
   const router = useRouter();
   const pathname = usePathname();
   const { totalCount } = useCart();
@@ -96,7 +97,7 @@ function GalleryInner() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#08000F]">
       <div ref={wrapperRef}>
-        <RoomView room={ROOMS[currentRoom]} onNavigate={navigate} />
+        <RoomView room={rooms[currentRoom]} onNavigate={navigate} />
       </div>
 
       {hasMap && <MapCanvas visited={visited} current={currentRoom} />}
@@ -134,10 +135,10 @@ function GalleryInner() {
   );
 }
 
-export default function GalleryPage() {
+export default function GalleryPage({ rooms = ROOMS }: { rooms?: Record<RoomType, Room> }) {
   return (
     <CartProvider>
-      <GalleryInner />
+      <GalleryInner rooms={rooms} />
     </CartProvider>
   );
 }
