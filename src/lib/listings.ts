@@ -1,13 +1,14 @@
-import { createClient } from "@/lib/supabase/client";
 import { ContentItem, ContentType, Direction } from "@/types/gallery";
+
+export const LISTING_SELECT = "*, room!inner(slug)";
 
 export interface ListingRow {
   id: string;
   room_id: string;
   room: { slug: string };
   static_id: string | null;
-  content_type: "artwork" | "book" | "article" | "music";
-  wall: "north" | "south" | "east" | "west";
+  content_type: ContentType;
+  wall: Direction;
   title: string;
   artist_name: string;
   artist_id: string | null;
@@ -24,25 +25,11 @@ export interface ListingRow {
   updated_at: string;
 }
 
-const CONTENT_TYPE_MAP: Record<ListingRow["content_type"], ContentType> = {
-  artwork: ContentType.Artwork,
-  book: ContentType.Book,
-  article: ContentType.Article,
-  music: ContentType.Music,
-};
-
-const DIRECTION_MAP: Record<ListingRow["wall"], Direction> = {
-  north: Direction.North,
-  south: Direction.South,
-  east: Direction.East,
-  west: Direction.West,
-};
-
 export function listingToContentItem(row: ListingRow): ContentItem {
   return {
     id: row.static_id ?? row.id,
-    type: CONTENT_TYPE_MAP[row.content_type],
-    wall: DIRECTION_MAP[row.wall],
+    type: row.content_type,
+    wall: row.wall,
     title: row.title,
     artist: row.artist_name,
     medium: row.medium ?? undefined,
@@ -54,15 +41,4 @@ export function listingToContentItem(row: ListingRow): ContentItem {
     forSale: row.for_sale,
     imageUrl: row.image_url ?? undefined,
   };
-}
-
-export async function fetchAllListings(): Promise<ListingRow[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("listing")
-    .select("*, room(slug)")
-    .order("sort_order");
-
-  if (error) throw error;
-  return data as ListingRow[];
 }
