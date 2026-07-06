@@ -33,6 +33,110 @@ Chaque salle est une entite en base de donnees avec : id, nom, contenu (oeuvres,
 - Pas de Redis, pas de WebSockets, pas de microservices
 - Pas d'app mobile avant que le web soit stable
 - Pas de CMS externe — le contenu est gere directement en base
+- Pas d'espace admin custom tant que le parcours visiteur et le modele de donnees ne sont pas stables
+
+## Roadmap
+
+### Etat actuel (branche `feat/cart-drawer`)
+
+| Phase | Statut |
+|-------|--------|
+| 1. Experience galerie (navigation, animations, entree) | Fait |
+| 2. Marketplace UI (fiches, panier, drawer) | Fait |
+| 3. Couche contenu Supabase (listings → galerie) | En cours |
+| 4. Auth + niveaux d'abonnement | Schema DB seulement |
+| 5. Enigmes | Schema DB seulement |
+| 6. Stripe (achat, abonnements, dons) | Pas commence |
+| 7. Deploiement Vercel | Pas commence |
+
+### Strategie contenu — fake data d'abord
+
+**Regle : fake data jusqu'a ce que la galerie soit credible pour un visiteur. Admin seulement quand ajouter du contenu en SQL devient penible.**
+
+Tant que les phases 2–3 ne sont pas terminees, rester sur :
+- `src/data/rooms.ts` (structure des salles + connexions)
+- Seeds SQL (`supabase/migrations/`, `supabase/listing.sql`)
+- Edition manuelle via le dashboard Supabase
+
+Ne pas construire d'admin custom maintenant : le modele `listing` / `room` est encore en refactor (`room_slug` vs `room_id` FK), et le parcours visiteur n'est pas boucle de bout en bout.
+
+### Quand construire l'admin
+
+Declencher l'admin minimal quand **au moins deux** de ces signaux sont vrais :
+- Le modele de donnees listing/room est stable (plus de refactor)
+- Le parcours visiteur fonctionne : parcourir → detail → panier → paiement
+- Hortense a besoin d'ajouter des oeuvres sans SQL
+- L'auth existe (login/signup) — l'admin = route protegee par role
+
+**Jalon concret :** apres cart + checkout Stripe basique + login, et apres avoir ajoute 2–3 vraies oeuvres via le dashboard Supabase pour valider les champs necessaires.
+
+**Scope admin v1 (minimal) :**
+- Auth + verification role admin
+- CRUD listings (titre, prix, salle, mur, image URL)
+- Pas d'upload image au debut (URL suffit)
+- Pas d'editeur de salles, enigmes, abonnements ou commandes
+
+**Admin plus tard :** enigmes, tiers d'acces, dons, gestion des commandes.
+
+### Ordre recommande
+
+```
+Maintenant   → finir listings Supabase → galerie (feat/cart-drawer)
+Ensuite      → reconcilier le schema (room_slug vs room_id FK, une seule source)
+Puis         → checkout Stripe (meme basique)
+Puis         → auth (login/signup)
+Puis         → ajouter 2–3 vraies oeuvres via dashboard Supabase
+Alors        → admin minimal listings
+Plus tard    → gating par tier, enigmes, dons, deploiement
+```
+
+### Phase 1 — Experience galerie ✅
+- 6 salles, navigation 2D, transitions GSAP
+- Scene d'entree (starfield / psychedelique)
+- Carte (pickup + MapCanvas)
+- i18n FR/EN
+
+### Phase 2 — Marketplace UI ✅
+- Modele `ContentItem` unifie (artwork, book, article, music)
+- `ItemCard`, `ItemDetail`, "Add to cart"
+- Etat panier (`CartProvider`)
+- `CartDrawer` (checkout bouton present, non cable)
+
+### Phase 3 — Couche contenu Supabase 🔄
+- Fetch server-side des listings dans `gallery/page.tsx`
+- Merger contenu DB + structure statique `rooms.ts`
+- Reconcilier migrations (`room_slug`) et `listing.sql` (`room_id` FK)
+- Valider le parcours avec seed data avant tout contenu reel
+
+### Phase 4 — Auth + abonnements
+- UI login/signup
+- `profile.subscription_tier` + enforcement `access_level` sur salles/contenu
+- Stripe abonnements recurrents (4 tiers)
+
+### Phase 5 — Enigmes
+- UI enigmes dans les salles
+- `enigma_completion` + progression utilisateur
+
+### Phase 6 — Paiements complets
+- Stripe checkout panier (oeuvres / prints)
+- Persistance `order`
+- Bouton don + associations feministes
+
+### Phase 7 — Deploiement
+- Vercel + variables d'environnement Supabase / Stripe
+
+### Maintenance du plan
+
+Le plan est maintenu dans ce fichier. La regle `.cursor/rules/roadmap-sync.mdc` demande a l'agent Cursor de le mettre a jour automatiquement en fin de session quand le projet avance.
+
+**Declencheurs :** feature terminee, phase changee, decision d'architecture, merge de branche.
+**Pas de mise a jour :** questions, reviews, typos, deps sans impact roadmap.
+
+Pour forcer une sync : terminer un prompt par « mets a jour le plan quand tu as fini ».
+
+### Journal de progression
+
+- 2026-07-06 — Roadmap ajoutee ; strategie fake-data-first et criteres admin documentes (branche: feat/cart-drawer)
 
 ## Contexte pedagogique
 La developpeuse est de niveau intermediaire en TypeScript/JavaScript/Python et developpe ce projet pour monter en competences vers un niveau senior. Toujours expliquer les choix techniques, signaler les pieges classiques, et ne jamais generer du code que la developpeuse ne peut pas expliquer ligne par ligne.

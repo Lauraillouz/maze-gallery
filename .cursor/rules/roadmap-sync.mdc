@@ -1,0 +1,46 @@
+---
+description: Keep .cursorrules roadmap in sync after every meaningful step forward
+alwaysApply: true
+---
+
+# Roadmap sync
+
+The project plan lives in `.cursorrules` (section **Roadmap**). Keep it current — do not wait for the user to ask.
+
+## When to update
+
+Update `.cursorrules` at the **end** of any session where you:
+
+- Complete or start a roadmap item (phase checkbox, status table row, or "Ordre recommandé" step)
+- Merge work or finish a feature branch
+- Change what is "Fait", "En cours", or "Pas commencé"
+- Make a decision that affects later phases (e.g. schema choice, defer admin)
+
+**Do not update** for: questions only, reviews with no code changes, typo fixes, or dependency bumps unrelated to the roadmap.
+
+## What to update
+
+1. **Table "Etat actuel"** — phase statuses and current branch name
+2. **Phase sections** — move items between ✅ / 🔄 / unchecked; add sub-items if scope grew
+3. **"Ordre recommandé"** — strike through or reword completed steps; put the next step first
+4. **Journal de progression** — append one dated line (newest first):
+
+   `- YYYY-MM-DD — <what changed> (branche: <name>)`
+
+## How to decide status
+
+- **Fait** — shipped or merged; works in the app
+- **En cours** — active branch or WIP with partial implementation
+- **Schema DB seulement** — migration exists, no UI wired
+- **Pas commencé** — no meaningful code yet
+
+Re-read the codebase or `git status` / recent commits before changing statuses — do not guess.
+
+## Done checklist
+
+Before marking your coding task complete, confirm:
+
+- [ ] Roadmap reflects the actual state of the repo
+- [ ] Current branch name is correct in "Etat actuel"
+- [ ] Journal entry added if anything moved forward
+- [ ] User is told what changed in the plan (one sentence)
