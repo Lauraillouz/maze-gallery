@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import gsap from "gsap";
-import { RoomType } from "@/types/gallery";
+import { ContentItem, Room, RoomType } from "@/types/gallery";
 import { ROOMS } from "@/data/rooms";
 import { CartProvider, useCart } from "@/lib/cart";
+import { fetchRoomListings } from "@/lib/listings.client";
 import RoomView from "./RoomView";
 import MapCanvas from "./MapCanvas";
 import CartDrawer from "./CartDrawer";
@@ -13,7 +14,13 @@ import CartDrawer from "./CartDrawer";
 const MAP_STORAGE_KEY = "hortense_has_map";
 const PSYCHEDELIC_COLORS = ["#FF2D9B", "#A000FF", "#00D4C8", "#82E000", "#FF6400", "#F5E000"];
 
-function GalleryInner() {
+function GalleryInner({
+  rooms,
+  initialRoomContent,
+}: {
+  rooms: Record<RoomType, Room>;
+  initialRoomContent: Partial<Record<RoomType, ContentItem[]>>;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { totalCount } = useCart();
@@ -22,9 +29,18 @@ function GalleryInner() {
   const [currentRoom, setCurrentRoom] = useState(RoomType.Entrance);
   const [visited, setVisited] = useState<Set<RoomType>>(new Set([RoomType.Entrance]));
   const [transitioning, setTransitioning] = useState(false);
+  const [roomContent, setRoomContent] = useState(initialRoomContent);
+  const loadedRooms = useRef(new Set(Object.keys(initialRoomContent) as RoomType[]));
   const wrapperRef = useRef<HTMLDivElement>(null);
   const pickUpBtnRef = useRef<HTMLButtonElement>(null);
   const exitBtnRef = useRef<HTMLButtonElement>(null);
+
+  function resolveRoom(type: RoomType): Room {
+    return {
+      ...rooms[type],
+      content: roomContent[type] ?? rooms[type].content,
+    };
+  }
 
   useEffect(() => {
     setHasMap(localStorage.getItem(MAP_STORAGE_KEY) === "true");
@@ -59,14 +75,28 @@ function GalleryInner() {
       duration: 0.3,
       ease: "power2.in",
       onComplete: () => {
-        setCurrentRoom(to);
-        setVisited((prev) => new Set([...Array.from(prev), to]));
-        gsap.to(wrapperRef.current, {
-          opacity: 1,
-          duration: 0.3,
-          ease: "power2.out",
-          onComplete: () => setTransitioning(false),
-        });
+        void (async () => {
+          if (!loadedRooms.current.has(to)) {
+            try {
+              const content = await fetchRoomListings(to);
+              if (content.length > 0) {
+                setRoomContent((prev) => ({ ...prev, [to]: content }));
+              }
+            } catch {
+              // Fall back to static content from ROOMS
+            }
+            loadedRooms.current.add(to);
+          }
+
+          setCurrentRoom(to);
+          setVisited((prev) => new Set([...Array.from(prev), to]));
+          gsap.to(wrapperRef.current, {
+            opacity: 1,
+            duration: 0.3,
+            ease: "power2.out",
+            onComplete: () => setTransitioning(false),
+          });
+        })();
       },
     });
   }
@@ -96,7 +126,7 @@ function GalleryInner() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#08000F]">
       <div ref={wrapperRef}>
-        <RoomView room={ROOMS[currentRoom]} onNavigate={navigate} />
+        <RoomView room={resolveRoom(currentRoom)} onNavigate={navigate} />
       </div>
 
       {hasMap && <MapCanvas visited={visited} current={currentRoom} />}
@@ -134,10 +164,16 @@ function GalleryInner() {
   );
 }
 
-export default function GalleryPage() {
+export default function GalleryPage({
+  rooms = ROOMS,
+  initialRoomContent = {},
+}: {
+  rooms?: Record<RoomType, Room>;
+  initialRoomContent?: Partial<Record<RoomType, ContentItem[]>>;
+}) {
   return (
     <CartProvider>
-      <GalleryInner />
+      <GalleryInner rooms={rooms} initialRoomContent={initialRoomContent} />
     </CartProvider>
   );
 }
